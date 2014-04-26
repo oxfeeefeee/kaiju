@@ -19,7 +19,7 @@ func init() {
 } 
 
 func NewAlertMsg() Message {
-	return new(Message_alert)
+    return new(Message_alert)
 }
 
 func (m *Message_alert) Command() string {

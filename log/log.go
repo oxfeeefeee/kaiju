@@ -1,11 +1,11 @@
 package log
 
 import (
-	"log"
-	"os"
+    "log"
+    "os"
     "fmt"
     "strings"
-	)
+    )
 
 
 var mainLogger, KioLogger, KioMsgLogger, KioPeerLogger *Logger
@@ -13,8 +13,8 @@ var mainLogger, KioLogger, KioMsgLogger, KioPeerLogger *Logger
 func init() {
     mainLogger = createLogger("main")
     KioLogger = createLogger("io")
-	KioMsgLogger = createLogger("io.msg")
-	KioPeerLogger = createLogger("io.peer")
+    KioMsgLogger = createLogger("io.msg")
+    KioPeerLogger = createLogger("io.peer")
 }
 
 type Logger struct{
@@ -28,7 +28,7 @@ func (l *Logger) Debugf(format string, v ...interface{}) {
 }
 
 func createLogger(category string) *Logger {
-	l := log.New(os.Stdout, category, log.Ldate|log.Lmicroseconds|log.Lshortfile)
+    l := log.New(os.Stdout, category, log.Ldate|log.Lmicroseconds|log.Lshortfile)
     return &Logger{l}
 }
 

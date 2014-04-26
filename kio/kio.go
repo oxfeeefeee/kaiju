@@ -42,7 +42,7 @@ func (kio *KIO) Go() {
 
 // Handy function
 func logger() *log.Logger {
-	return log.KioLogger
+    return log.KioLogger
 }
 
 

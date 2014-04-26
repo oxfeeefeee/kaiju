@@ -6,8 +6,8 @@ import (
 )
 
 func encodeAndDecodeVarUnit(t *testing.T, v uint64) {
-	logger().Debugf("Testing VarUint %v ...", v)
-	buf := new(bytes.Buffer)
+    logger().Debugf("Testing VarUint %v ...", v)
+    buf := new(bytes.Buffer)
     var err error;
     vi := VarUint(v)
     err = writeVarUint(buf, &vi, err)
@@ -25,10 +25,10 @@ func encodeAndDecodeVarUnit(t *testing.T, v uint64) {
 }
 
 func TestVarUint(t *testing.T) {
-	encodeAndDecodeVarUnit(t, 123)
-	encodeAndDecodeVarUnit(t, 0xfffe)
-	encodeAndDecodeVarUnit(t, 0xffff)
-	encodeAndDecodeVarUnit(t, 65536)
-	encodeAndDecodeVarUnit(t, 1234567890)
-	encodeAndDecodeVarUnit(t, 1234567890123)
+    encodeAndDecodeVarUnit(t, 123)
+    encodeAndDecodeVarUnit(t, 0xfffe)
+    encodeAndDecodeVarUnit(t, 0xffff)
+    encodeAndDecodeVarUnit(t, 65536)
+    encodeAndDecodeVarUnit(t, 1234567890)
+    encodeAndDecodeVarUnit(t, 1234567890123)
 }
