@@ -6,10 +6,12 @@
 # Folders
 _obj
 _test
+_nogit
 
 # Architecture specific extensions/prefixes
 *.[568vq]
 [568vq].out
+.DS_Store
 
 *.cgo1.go
 *.cgo2.c
@@ -21,3 +23,6 @@ _testmain.go
 
 *.exe
 *.test
+
+main
+kaiju
