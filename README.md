@@ -14,6 +14,11 @@ Services need a Bitcoin Server. There are two main reasons why Bitcoin Core (bit
 
 Kaiju is designed to handle thouthands of connnections. And it does only one thing and try to be good at it: Being a lean and mean Bitcoin node, to communicate with the network, to verify Txs and Blocks.
 
+<a href="https://github.com/oxfeeefeee/kaiju/blob/master/KDB.md" title="KDB">KDB</a>
+----
+
+A compact TXDatabase will be used in Kaiju, so that you don't need to store the full blockchain, but can sitll verify transactions.
+
 Educational Purpose
 ----
 
