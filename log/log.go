@@ -9,12 +9,14 @@ import (
 
 
 var mainLogger, KioLogger, KioMsgLogger, KioPeerLogger *Logger
+var KDBLogger *Logger
 
 func init() {
     mainLogger = createLogger("main")
-    KioLogger = createLogger("io")
-    KioMsgLogger = createLogger("io.msg")
-    KioPeerLogger = createLogger("io.peer")
+    KioLogger = createLogger("kio")
+    KioMsgLogger = createLogger("kio.msg")
+    KioPeerLogger = createLogger("kio.peer")
+    KDBLogger = createLogger("kdb")
 }
 
 type Logger struct{
