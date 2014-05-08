@@ -13,14 +13,23 @@ import (
     "github.com/oxfeeefeee/kaiju/config"
 )
 
-func testUint32(t *testing.T, db *KDB, key uint32, value uint32) {
+func cookUint32(key uint32, value uint32)([]byte, []byte) {
     kbuf, vbuf := make([]byte, 6, 6), make([]byte, 4, 4)
     binary.LittleEndian.PutUint32(kbuf[:], key)
     hash := sha256.Sum256(kbuf[0:4])
     copy(kbuf[:], hash[0:6])
     clearMaskBits(kbuf)
-    binary.LittleEndian.PutUint32(vbuf, value)
+    binary.LittleEndian.PutUint32(vbuf, value)  
+    return kbuf, vbuf
+}
+
+func writeUint32(t *testing.T, db *KDB, key uint32, value uint32) {
+    kbuf, vbuf := cookUint32(key, value)
     db.addRecord(kbuf, vbuf)
+}
+
+func testUint32(t *testing.T, db *KDB, key uint32, value uint32) {
+    kbuf, vbuf := cookUint32(key, value)
     v, getErr := db.getRecord(kbuf, 1)
     if getErr != nil {
         t.Errorf(fmt.Sprintf("Failed to getRecord KDB: %s", getErr))
@@ -58,6 +67,9 @@ func TestKDB(t *testing.T) {
         t.Errorf(fmt.Sprintf("Failed to create KDB: %s", dberr))
     }
 
+    for i:=uint32(1); i < capacity; i++ {
+        writeUint32(t, db, uint32(i), uint32(i))  
+    }
     for i:=uint32(1); i < capacity; i++ {
         testUint32(t, db, uint32(i), uint32(i))  
     }
