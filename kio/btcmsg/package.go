@@ -8,8 +8,8 @@ import (
     "errors"
     "bytes"
     "encoding/binary"
-    "crypto/sha256"
     "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/klib"
 )
 
 // A map from message name to it's creator function
@@ -116,13 +116,7 @@ func decodeMessageFromPayload(command string, payload []byte) (Message, error) {
 
 // checksum is the first 4 bytes of sha256(payload)
 func getChecksumForPayload(payload []byte) uint32 {
-    hash := sha256.New()
-    hash.Write(payload)
-    sha := make([]byte, sha256.Size)
-    copy(sha[:], hash.Sum(nil)[:])
-    hash.Reset()
-    hash.Write(sha)
-    checksum := hash.Sum(nil)
-    return binary.LittleEndian.Uint32(checksum[:4])
+    hash := klib.Sha256Sha256(payload)
+    return binary.LittleEndian.Uint32(hash[:4])
 }
 

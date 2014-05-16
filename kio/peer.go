@@ -1,20 +1,22 @@
 // Remote bitcoin network peer/node
 
-package peer
+package kio
 
 import (
     "net"
     "sync"
+    "time"
     "errors"
-    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
 )
+
+const SendQueueSize = 16
 
 // Peer represents and communicates to a remote bitcoin node.
 //
 // Note that the ip of the remote node is used as the unique ID of the peer
 type Peer struct {
-    MyID            ID
+    myID            ID
     // Standard bitcoin protocol peer info 
     info            *btcmsg.PeerInfo
     // Is this an outgoing or incoming connection? the handshaking differs
@@ -22,7 +24,11 @@ type Peer struct {
     // Network connection to remote node
     conn            net.Conn 
     // For outgoing message
-    sendChan        chan btcmsg.Message
+    sendChan        chan *msgSent
+    // Expectors expects specific messages
+    expectors       []*msgExpector
+    // Mutex for expectors
+    expMutex        sync.Mutex
     // For tell sender when chan closed
     done            chan struct{}
     // Used to clean up this peer
@@ -31,27 +37,77 @@ type Peer struct {
     *monitors
 }
 
-func NewPeer(id ID, conn net.Conn, info *btcmsg.PeerInfo, outgoing bool) *Peer {
+// Descriptor of message being sent
+type msgSent struct {
+    msg         btcmsg.Message
+    timeout     time.Duration
+    errChan     chan error
+}
+
+// Descriptor of message being expected
+type msgExpector struct {
+    filter      MsgFilter
+    timeout     time.Duration
+    retChan     chan struct{btcmsg.Message; Error error}
+}
+
+func newPeer(id ID, conn net.Conn, info *btcmsg.PeerInfo, outgoing bool) *Peer {
     return &Peer{
-        MyID: id,
+        myID: id,
         info: info,
         outgoing: outgoing,
         conn: conn,
-        sendChan: make(chan btcmsg.Message),
+        sendChan: make(chan *msgSent, SendQueueSize),
+        expectors: make([]*msgExpector, 0, 2),
         done: make(chan struct{}),
         onceCleanUp: new(sync.Once),
         monitors : new(monitors),
     }
 }
 
-func (p *Peer) Go() error{
+// Send a bitcoin message to remote peer
+// SendMsg mustn't block for Pool to work properly
+func (p *Peer) sendMsg(m *msgSent) {
+    select {
+        case p.sendChan <- m:
+        default:
+            if m.errChan != nil {
+                m.errChan <- errors.New("Peer sending queue full.")    
+            } 
+    }
+}
+
+func (p *Peer) expectMsg(exp *msgExpector) {
+    p.expMutex.Lock()
+    p.expectors = append(p.expectors, exp)
+    p.expMutex.Unlock()
+
+    // Remove the expector at time out
+    go func(){
+        <-time.After(exp.timeout)
+        p.expMutex.Lock()
+        defer p.expMutex.Unlock()
+        exps := p.expectors
+        for i, e := range exps {
+            if e == exp {
+                e.retChan <-struct{btcmsg.Message; Error error}{
+                    nil, errors.New("Peer ExpectMsg timeout")}
+                // Delete the expector
+                p.expectors = append(exps[:i], exps[i+1:]...)
+                return
+            }
+        }
+    }()
+}
+
+func (p *Peer) start() error{
     err := p.versionHankshake()
     if err != nil {
         p.conn.Close()
         return err;
     }
 
-    go p.OnPeerUp(p)
+    go p.onPeerUp(p)
     go p.loopSendMsg()
     go p.loopReceiveMsg()
 
@@ -64,16 +120,8 @@ func (p *Peer) Go() error{
     return nil
 }
 
-// Send a bitcoin message to remote peer
-func (p *Peer) SendMsg(msg btcmsg.Message) {
-    select {
-        case p.sendChan <- msg:
-        case <-p.done:
-    }
-}
-
 // OK to be called simultaneously by multiple goroutines
-func (p *Peer) Kill() {
+func (p *Peer) kill() {
     // This leads to read error, which will end the loop
     p.conn.Close()
 }
@@ -89,7 +137,7 @@ func (p *Peer) cleanUp() {
             close(p.done)
             p.conn.Close()
             // Notify monitors
-            p.OnPeerDown(p)
+            p.onPeerDown(p)
        })
 }
 
@@ -99,11 +147,22 @@ func (p *Peer) loopSendMsg() {
     running := true
     for running {
         select {
-        case msg := <-p.sendChan:
-            err := btcmsg.WriteMsg(p.conn, msg)
-            if err != nil {
-                logger().Printf("loopSendMsg error: %s", err.Error())
-                running = false
+        case m := <-p.sendChan:
+            // "c" is used do timeout 
+            c := make(chan error, 1)
+            go func() { c <- btcmsg.WriteMsg(p.conn, m.msg) } ()
+            select {
+            case err := <-c:
+                if err != nil {
+                    if m.errChan != nil {
+                        m.errChan <- err
+                    }
+                    running = false
+                } else {
+                    m.errChan <- nil
+                }
+            case <-time.After(m.timeout):
+                m.errChan <- errors.New("Peer send message timeout.")
             }
         case <-p.done:
             running = false
@@ -121,7 +180,7 @@ func (p *Peer) loopReceiveMsg() {
             break
         } else {
             if !p.handleMessage(msg) {
-                p.OnPeerRecevieMsg(p.MyID, msg)
+                p.onPeerMsg(p.myID, msg)
             }
         }
     }
@@ -137,9 +196,20 @@ func (p *Peer) handleMessage(msg btcmsg.Message) bool {
         ping := msg.(*btcmsg.Message_ping)
         pong := btcmsg.NewPongMsg().(*btcmsg.Message_pong)
         pong.Nonce = ping.Nonce
-        p.SendMsg(pong)
-        //logger().Debugf("PONG!!!!!! %v", pong.Nonce)
+        p.sendMsg(&msgSent{pong, 0, nil})
         return true
+    default:
+        p.expMutex.Lock()
+        defer p.expMutex.Unlock()
+        exps := p.expectors
+        for i, e := range exps {
+            if e.filter(msg) {
+                e.retChan <-struct{btcmsg.Message; Error error}{msg, nil}
+                // Delete the expector
+                p.expectors = append(exps[:i], exps[i+1:]...)
+                return true
+            }
+        }
     }
     return false
 }
@@ -191,10 +261,4 @@ func (p *Peer) sendVersionMsg() error {
     vmsg := btcmsg.NewLocalVersionMsg(p.info)
     return btcmsg.WriteMsg(p.conn, vmsg) 
 }
-
-// Handy function
-func logger() *log.Logger {
-    return log.KioPeerLogger
-}
-
 

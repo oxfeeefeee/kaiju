@@ -1,5 +1,5 @@
 // Manages ID for all the peers
-package peer
+package kio
 
 import (
     "sync"
@@ -10,20 +10,20 @@ type ID uint64
 
 var maxNormalID uint64
 
-type IDManager struct {
+type idManager struct {
     record      map[btcmsg.PeerIP]ID
     nextID      uint64
     mutex       sync.Mutex
 }
 
-func NewIDManager() *IDManager {
-    return &IDManager {
+func newIDManager() *idManager {
+    return &idManager {
         record: make(map[btcmsg.PeerIP]ID),
         nextID: 0,
     }
 }
 
-func (m *IDManager) GetID(ip btcmsg.PeerIP) ID {
+func (m *idManager) getID(ip btcmsg.PeerIP) ID {
     m.mutex.Lock()
     defer m.mutex.Unlock()
     

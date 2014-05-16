@@ -4,12 +4,13 @@ import (
     "bytes"
     "errors"
     "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/blockchain"
 )
 
 // Bitcoin protocol message: "block"
 type Message_block struct {
-    Header      *BlockHeader
-    Txns        []*Tx        
+    Header      *blockchain.Header
+    Txs         []*Tx        
 }
 
 func NewBlockMsg() Message {
@@ -26,9 +27,9 @@ func (m *Message_block) Encode() ([]byte, error) {
     var err error;
 
     err = writeBlockHeader(buf, m.Header, err)
-    listSize := VarUint(len(m.Txns))
+    listSize := VarUint(len(m.Txs))
     err = writeVarUint(buf, &listSize, err)
-    for _, t := range m.Txns {
+    for _, t := range m.Txs {
         err = writeTx(buf, t, err)
     }
     if err != nil {
@@ -50,11 +51,11 @@ func (m *Message_block) Decode(payload []byte) error {
         return errors.New("Message_block list too long")
     }
 
-    txns := make([]*Tx, listSize)
+    txs := make([]*Tx, listSize)
     for i := uint64(0); i < uint64(listSize); i++ {
-        txns[i] = new(Tx)
-        err = readData(buf, txns[i], err)
+        txs[i] = new(Tx)
+        err = readData(buf, txs[i], err)
     } 
-    m.Txns = txns
+    m.Txs = txs
     return err
 }

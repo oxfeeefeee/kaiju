@@ -5,8 +5,10 @@ import (
     "io"
     "errors"
     "encoding/binary"
+    "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/blockchain"
 )
 
 // The interface of all the message types that are used in bitcoin network protocol
@@ -24,61 +26,14 @@ type Message interface {
 type VarUint uint64
 
 // Encoded as a VarUint representing the length of the string, followed by the content of the string
-type VarString string
-
-// A 256 bit hash, e.g. result of sha256
-type Hash256 [32]byte
+type VarString []byte
 
 type InvElement struct {
     InvType     uint32
-    Hash        Hash256
+    Hash        klib.Hash256
 }
 
-type BlockHeader struct {
-    // The software version which created this block
-    Version         uint32
-    // The hash of the previous block
-    PrevBlock       Hash256
-    // The hash(fingerprint) of all txs in this block
-    MerkleRoot      Hash256
-    // When this block was created
-    Timestamp       uint32
-    // The difficulty target being used for this block
-    Bits            uint32
-    // A random number with which to compute different hashes when mining.
-    Nonce           uint32
-    TxnCount        VarUint
-}
-
-type TxOut struct {
-    // Transaction Value
-    Value           int64
-    // pk_script, usually contains the public key as a Bitcoin script setting up conditions to claim this output.
-    PKScript        VarString
-}
-
-type OutPoint struct {
-    // The hash of the referenced transaction.
-    Hash            Hash256
-    // The index of the specific output in the transaction. The first output is 0, etc.
-    Index           uint32
-}
-
-type TxIn struct {
-    // The previous output transaction referenc.
-    PreviousOutput  OutPoint
-    // Script for confirming transaction authorization.
-    SigScript       VarString
-    // http://bitcoin.stackexchange.com/questions/2025/what-is-txins-sequence
-    Sequence        uint32 
-}
-
-type Tx struct {
-    Version         uint32
-    TxIns           []*TxIn
-    TxOuts          []*TxOut
-    LockTime        uint32
-}
+type Tx blockchain.Tx
 
 func writeVarUint(w io.Writer, vuint *VarUint, lastError error) error {
     if lastError != nil {
@@ -159,7 +114,7 @@ func writeVarString(w io.Writer, p *VarString, lastError error) error {
         return lastError
     }
 
-    _, lastError = io.WriteString(w, string(*p))
+    _, lastError = w.Write(*p)
     return lastError
 }
 
@@ -181,11 +136,11 @@ func readVarString(r io.Reader, p *VarString, lastError error) error {
     if lastError != nil {
         return lastError
     }
-    *p = VarString(strBuf)
+    *p = strBuf
     return nil
 }
 
-func writeBlockHeader(w io.Writer, bh *BlockHeader, lastError error) error {
+func writeBlockHeader(w io.Writer, bh *blockchain.Header, lastError error) error {
     if lastError == nil {
         lastError = writeData(w, &bh.Version, lastError)
         lastError = writeData(w, &bh.PrevBlock, lastError)
@@ -193,12 +148,11 @@ func writeBlockHeader(w io.Writer, bh *BlockHeader, lastError error) error {
         lastError = writeData(w, &bh.Timestamp, lastError)
         lastError = writeData(w, &bh.Bits, lastError)
         lastError = writeData(w, &bh.Nonce, lastError)
-        lastError = writeVarUint(w, &bh.TxnCount, lastError)
     }
     return lastError
 }
 
-func readBlockHeader(r io.Reader, bh *BlockHeader, lastError error) error {
+func readBlockHeader(r io.Reader, bh *blockchain.Header, lastError error) error {
     if lastError == nil {
         lastError = readData(r, &bh.Version, lastError)
         lastError = readData(r, &bh.PrevBlock, lastError)
@@ -206,7 +160,6 @@ func readBlockHeader(r io.Reader, bh *BlockHeader, lastError error) error {
         lastError = readData(r, &bh.Timestamp, lastError)
         lastError = readData(r, &bh.Bits, lastError)
         lastError = readData(r, &bh.Nonce, lastError)
-        lastError = readVarUint(r, &bh.TxnCount, lastError)
     }
     return lastError
 }
@@ -220,14 +173,14 @@ func writeTx(w io.Writer, tx *Tx, lastError error) error {
     lastError = writeVarUint(w, &listSize, lastError)
     for _, txin := range tx.TxIns {
         lastError = writeData(w, &txin.PreviousOutput, lastError)
-        lastError = writeVarString(w, &txin.SigScript, lastError)
+        lastError = writeVarString(w, (*VarString)(&txin.SigScript), lastError)
         lastError = writeData(w, &txin.Sequence, lastError)
     }
     listSize = VarUint(len(tx.TxOuts))
     lastError = writeVarUint(w, &listSize, lastError)
     for _, txout := range tx.TxOuts {
         lastError = writeData(w, &txout.Value, lastError)
-        lastError = writeVarString(w, &txout.PKScript, lastError)
+        lastError = writeVarString(w, (*VarString)(&txout.PKScript), lastError)
     }
     lastError = writeData(w, &tx.LockTime, lastError)
     return lastError
@@ -245,12 +198,12 @@ func readTx(r io.Reader, tx *Tx, lastError error) error {
     } else if listSize > VarUint(cst.MaxInvListSize) {
         return errors.New("TxIn list too long")
     }
-    tx.TxIns = make([]*TxIn, listSize)
+    tx.TxIns = make([]*blockchain.TxIn, listSize)
     txins := tx.TxIns
     for i := uint64(0); i < uint64(listSize); i++ {
-        txins[i] = new(TxIn)
+        txins[i] = new(blockchain.TxIn)
         lastError = readData(r, &txins[i].PreviousOutput, lastError)
-        lastError = readVarString(r, &txins[i].SigScript, lastError)
+        lastError = readVarString(r, (*VarString)(&txins[i].SigScript), lastError)
         lastError = readData(r, &txins[i].Sequence, lastError)
     }
     lastError = readVarUint(r, &listSize, lastError)
@@ -259,12 +212,12 @@ func readTx(r io.Reader, tx *Tx, lastError error) error {
     } else if listSize > VarUint(cst.MaxInvListSize) {
         return errors.New("TxOut list too long")
     }
-    tx.TxOuts = make([]*TxOut, listSize)
+    tx.TxOuts = make([]*blockchain.TxOut, listSize)
     txouts := tx.TxOuts
     for i := uint64(0); i < uint64(listSize); i++ {
-        txouts[i] = new(TxOut)
+        txouts[i] = new(blockchain.TxOut)
         lastError = readData(r, &txouts[i].Value, lastError)
-        lastError = readVarString(r, &txouts[i].PKScript, lastError)
+        lastError = readVarString(r, (*VarString)(&txouts[i].PKScript), lastError)
     }
     lastError = readData(r, &tx.LockTime, lastError)
     return lastError

@@ -29,7 +29,7 @@ func NewLocalVersionMsg(addrRecv *PeerInfo) *Message_version {
         addrRecv,
         addrFrom,
         cst.NounceInVersionMsg,
-        cst.UserAgent,
+        VarString(cst.UserAgent),
         1,
         0,
     }

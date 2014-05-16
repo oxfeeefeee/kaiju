@@ -8,15 +8,16 @@ import (
     )
 
 
-var mainLogger, KioLogger, KioMsgLogger, KioPeerLogger *Logger
-var KDBLogger *Logger
+var mainLogger, KioLogger, KioMsgLogger *Logger
+var KDBLogger, BlockchainLogger, BrainLogger *Logger
 
 func init() {
     mainLogger = createLogger("main")
     KioLogger = createLogger("kio")
     KioMsgLogger = createLogger("kio.msg")
-    KioPeerLogger = createLogger("kio.peer")
     KDBLogger = createLogger("kdb")
+    BlockchainLogger = createLogger("kdb")
+    BrainLogger = createLogger("brain")
 }
 
 type Logger struct{

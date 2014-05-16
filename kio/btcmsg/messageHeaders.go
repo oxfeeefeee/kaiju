@@ -4,16 +4,17 @@ import (
     "bytes"
     "errors"
     "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/blockchain"
 )
 
 // Bitcoin protocol message: "headers"
 type Message_headers struct {
-    Headers       []*BlockHeader
+    Headers       []*blockchain.Header
 }
 
 func NewHeadersMsg() Message {
     return &Message_headers{
-        make([]*BlockHeader, 0),
+        make([]*blockchain.Header, 0),
     }
 }
 
@@ -48,9 +49,9 @@ func (m *Message_headers) Decode(payload []byte) error {
         return errors.New("Message_headers list too long")
     }
 
-    bhs := make([]*BlockHeader, listSize)
+    bhs := make([]*blockchain.Header, listSize)
     for i := uint64(0); i < uint64(listSize); i++ {
-        bhs[i] = new(BlockHeader)
+        bhs[i] = new(blockchain.Header)
         err = readBlockHeader(buf, bhs[i], err)
     } 
     m.Headers = bhs

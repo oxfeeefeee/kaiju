@@ -5,12 +5,13 @@ import (
     "bytes"
     "errors"
     "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/klib"
 )
 
 type Message_getheaders struct {
     Version         uint32
-    BlockLocators   []*Hash256
-    HashStop        *Hash256
+    BlockLocators   []*klib.Hash256
+    HashStop        *klib.Hash256
 } 
 
 func NewGetHeadersMsg() Message {
@@ -55,13 +56,13 @@ func (m *Message_getheaders) Decode(payload []byte) error {
         return errors.New("Message_getheaders/Message_geblocks list too long")
     }
 
-    inv := make([]*Hash256, listSize)
+    inv := make([]*klib.Hash256, listSize)
     for i := uint64(0); i < uint64(listSize); i++ {
-        inv[i] = new(Hash256)
+        inv[i] = new(klib.Hash256)
         err = readData(buf, inv[i], err)
     } 
     m.BlockLocators = inv
-    m.HashStop = new(Hash256)
+    m.HashStop = new(klib.Hash256)
     err = readData(buf, m.HashStop, err)
     return err
 }

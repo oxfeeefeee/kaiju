@@ -1,4 +1,4 @@
-package peer
+package kio
 
 import (
     "sync"
@@ -35,15 +35,15 @@ type addrPool struct {
     addrStatusQueue     *list.List
     addresses           map[ID]*addrPoolEntry
     mutex               sync.Mutex
-    // Embed the global IDManager for convenience  
-    *IDManager
+    // Embed the global idManager for convenience  
+    *idManager
 }
 
-func newAddrPool(im *IDManager) *addrPool {
+func newAddrPool(im *idManager) *addrPool {
     return &addrPool{
         addrStatusQueue: list.New(),
         addresses: make( map[ID]*addrPoolEntry),
-        IDManager: im,
+        idManager: im,
     }
 }
 
@@ -76,7 +76,7 @@ func (p *addrPool) pickOutBest() (*btcmsg.PeerInfo, int32) {
 
 // "replace" dectates if we want to update the existing info about the peer or not
 func (p *addrPool) addAddr(replace bool, addr *btcmsg.PeerInfo, timesFailed int32, lastTryTime int64) {
-    id := p.GetID(addr.IP)
+    id := p.getID(addr.IP)
     q := p.addrStatusQueue
     m := p.addresses
     

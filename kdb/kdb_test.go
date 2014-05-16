@@ -10,9 +10,10 @@ import (
     "testing"
     "fmt"
     "path/filepath"
+    "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/config"
 )
-
+  
 func cookUint32(key uint32, value uint32)([]byte, []byte) {
     kbuf, vbuf := make([]byte, 6, 6), make([]byte, 4, 4)
     binary.LittleEndian.PutUint32(kbuf[:], key)
@@ -57,6 +58,27 @@ func testNotUint32(t *testing.T, db *KDB, key uint32, value uint32) {
     }
 }
 
+func TestMemoryKDB(t *testing.T) {
+    buf := klib.NewMemFile(50 * 1024 * 1024)
+
+    capacity := uint32(1024 * 1024)
+    db, dberr := New(capacity, buf)
+    if dberr != nil {
+        t.Errorf(fmt.Sprintf("Failed to create KDB: %s", dberr))
+    }
+
+    for i:=uint32(0); i < capacity; i++ {
+        writeUint32(t, db, uint32(i), uint32(i))  
+    }
+
+
+    for i:=uint32(0); i < capacity; i++ {
+        testUint32(t, db, uint32(i), uint32(i))  
+    }
+
+    fmt.Printf("db: %s\n", db)
+}
+
 func TestKDB(t *testing.T) {
     err := config.ReadJsonConfigFile()
     if err != nil {
@@ -79,7 +101,7 @@ func TestKDB(t *testing.T) {
         t.Errorf(fmt.Sprintf("Failed to create file: %s", openErr))
     }
 
-    capacity := uint32(1024 * 10)
+    capacity := uint32(1024 * 1024)
     db, dberr := New(capacity, f)
     if dberr != nil {
         t.Errorf(fmt.Sprintf("Failed to create KDB: %s", dberr))
@@ -105,15 +127,19 @@ func TestKDB(t *testing.T) {
         testUint32(t, db, uint32(i), uint32(i))  
     }
 
-    for i:=uint32(0); i < capacity/1000; i++ {
+    for i:=uint32(0); i < capacity/10000; i++ {
         removeUint32(t, db, uint32(i), uint32(i))  
     }
 
-    for i:=uint32(0); i < capacity/1000; i++ {
+    for i:=uint32(0); i < capacity/10000; i++ {
         testNotUint32(t, db, uint32(i), uint32(i))  
     }
 
-    for i:=uint32(1000); i < capacity; i++ {
+    for  i:=uint32(0); i < capacity/10000; i++ {
+        writeUint32(t, db, uint32(i), uint32(i))  
+    }
+
+    for i:=uint32(0); i < capacity; i++ {
         testUint32(t, db, uint32(i), uint32(i))  
     }
 

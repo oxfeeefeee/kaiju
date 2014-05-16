@@ -25,8 +25,8 @@ const SlotBatchReadSize = 32
 // we only use (6_bytes - 3_bits_flags) = 45 bit.
 // With k slots and n keys, the expected number of collisions is n−k +k(1− 1/k)^n.
 //
-// It's expected for KDB to store thousands of txs with key collision due to the 45bit key
-// The solution is straightforward, iterate through all the TXs with the same key.
+// It's expected for KDB to store thousands of txs with key collisions due to the 45bit key.
+// The solution is straightforward: iterate through all the TXs with the same key to find the right one.
 //
 // ValuChecker is provided by the user to tell if the TxOutput is what's been looking for
 type ValueChecker func(value []byte) bool

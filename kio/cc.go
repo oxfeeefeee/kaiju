@@ -1,5 +1,5 @@
 // CC for Crowd Control as in CCP Games. CC decides if we connect to a specific remote peer or not
-package peer
+package kio
 
 import (
     "net"
@@ -12,11 +12,11 @@ type CC struct {
     ap              *addrPool
     // To control how many dailing in progress
     dialControl     chan struct{}
-    // Embed the global IDManager for convenience  
-    *IDManager
+    // Embed the global idManager for convenience  
+    *idManager
 }
 
-func NewCC(im *IDManager) *CC {
+func newCC(im *idManager) *CC {
     return &CC{
         newAddrPool(im), 
         make(chan struct{}, cst.MaxDialConcurrency), 
@@ -24,34 +24,7 @@ func NewCC(im *IDManager) *CC {
     }
 }
 
-// Member of Monitor interface
-func (cc *CC) InterestedMsgTypes() []string {
-    return []string{"addr",}
-}
-
-// Member of Monitor interface
-func (cc *CC) OnPeerUp(p *Peer) {
-    // Do nothing
-}
-
-// Member of Monitor interface
-func (cc *CC) OnPeerDown(p *Peer) {
-    // Put it back to the address list
-    now := time.Now().Unix()
-    p.info.Time = uint32(now) // Update last available time to "now"
-    cc.ap.addAddr(true, p.info, 1, now)
-}
-
-// Member of Monitor interface
-func (cc *CC) OnPeerRecevieMsg(id ID, msg btcmsg.Message) {
-    addrMsg := msg.(*btcmsg.Message_addr)
-    for _, addr := range addrMsg.Addresses {
-        cc.ap.addAddr(false, addr, 0, 0)
-    }
-    //cc.ap.dump()
-}
-
-func (cc *CC) AddSeedAddr(ipstr string, port int) {
+func (cc *CC) addSeedAddr(ipstr string, port int) {
     ip := net.ParseIP(ipstr)
     peerInfo := btcmsg.NewPeerInfo()
     peerInfo.IP = btcmsg.FromNetIP(&ip)
@@ -59,7 +32,7 @@ func (cc *CC) AddSeedAddr(ipstr string, port int) {
     cc.ap.addAddr(true, peerInfo, 0, 0)
 }
 
-func (cc *CC) Go(peerMonitors []Monitor) {
+func (cc *CC) start(peerMonitors []Monitor) {
     go func() {
         for {
             // Flow control for dial:
@@ -68,6 +41,33 @@ func (cc *CC) Go(peerMonitors []Monitor) {
             go cc.doConnect(peerMonitors)      
         }
     }()
+}
+
+// Member of Monitor interface
+func (cc *CC) listenTypes() []string {
+    return []string{"addr",}
+}
+
+// Member of Monitor interface
+func (cc *CC) onPeerUp(p *Peer) {
+    // Do nothing
+}
+
+// Member of Monitor interface
+func (cc *CC) onPeerDown(p *Peer) {
+    // Put it back to the address list
+    now := time.Now().Unix()
+    p.info.Time = uint32(now) // Update last available time to "now"
+    cc.ap.addAddr(true, p.info, 1, now)
+}
+
+// Member of Monitor interface
+func (cc *CC) onPeerMsg(id ID, msg btcmsg.Message) {
+    addrMsg := msg.(*btcmsg.Message_addr)
+    for _, addr := range addrMsg.Addresses {
+        cc.ap.addAddr(false, addr, 0, 0)
+    }
+    //cc.ap.dump()
 }
 
 func (cc *CC) doConnect(peerMonitors []Monitor) {
@@ -88,10 +88,10 @@ func (cc *CC) doConnect(peerMonitors []Monitor) {
     conn := <- cchan
     if conn != nil {
         // Spawn a peer
-        id := cc.GetID(addr.IP)
-        peer := NewPeer(id, conn, addr, true)
-        peer.AddMonitors(peerMonitors)
-        err := peer.Go()
+        id := cc.getID(addr.IP)
+        peer := newPeer(id, conn, addr, true)
+        peer.addMonitors(peerMonitors)
+        err := peer.start()
         if err != nil {
             cc.ap.addAddr(true, addr, timesFailed + 1, time.Now().Unix())
             //logger().Debugf("Failed to do handshake with peer %s: %s", addr.IP.ToNetIP(), err.Error())        
