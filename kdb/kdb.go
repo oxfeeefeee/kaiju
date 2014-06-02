@@ -131,8 +131,11 @@ func (db *KDB) RemoveRecord(key[]byte, check ValueChecker) (bool, error) {
                 } else {
                     keyData(slotBuf[offset:]).setDeleted()
                 }
-                db.rws.Seek(db.slotsBeginPos() + slotNum * SlotSize, 0)
-                _, err := db.rws.Write(slotBuf[offset:offset+1])
+                _, err := db.rws.Seek(db.slotsBeginPos() + slotNum * SlotSize, 0)
+                if err != nil {
+                    return err
+                }
+                _, err = db.rws.Write(slotBuf[offset:offset+1])
                 return err
             }))
     if err != nil {

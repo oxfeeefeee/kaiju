@@ -12,6 +12,6 @@
         "76.173.49.161",
         "209.239.118.179",
         "2.26.41.148"],
-    "DBDir":"./_nogit/kdb/",
-    "DBTempDir": "./_nogit/kdbtemp/"
+    "DataDir":"./_nogit/data/",
+    "TempDataDir": "./_nogit/kdbtemp/"
 }

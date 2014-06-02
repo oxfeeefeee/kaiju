@@ -15,10 +15,11 @@ import (
 )
 
 func catchUp() {
-    moreHeaders()
+    for moreHeaders() {}
+    //for moreBlocks() {}
 }
 
-func moreHeaders() {
+func moreHeaders() bool {
     c := blockchain.Chain()
     l := c.GetLocator()
     msg := btcmsg.NewGetHeadersMsg()
@@ -26,12 +27,22 @@ func moreHeaders() {
     mg.BlockLocators = l
     mg.HashStop = new(klib.Hash256)
 
-    f := func(m btcmsg.Message) bool {
+    f := func(m btcmsg.Message) (bool, bool) {
         _, ok := m.(*btcmsg.Message_headers)
-        return ok
+        return ok, true
     }
 
     mh := kio.ParalMsgForMsg(mg, f, 3)
-    h, _ := mh.(*btcmsg.Message_headers)
-    logger().Debugf("hahahaha %v", len(h.Headers))
+    if mh != nil {
+        h, _ := mh.(*btcmsg.Message_headers)
+        err := c.AppendHeaders(h.Headers)
+        if err != nil {
+            logger().Printf("Error appending headers: %s", err)
+        }
+    }
+    return !c.UpToDate()
+}
+
+func moreBlocks() bool {
+    return true
 }

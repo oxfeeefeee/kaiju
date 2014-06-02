@@ -12,8 +12,8 @@ const configFileName = "config.json"
 
 type Config struct {
     SeedPeers       []string
-    DBDir           string
-    DBTempDir       string
+    DataDir         string
+    TempDataDir     string
 }
 
 var cfg             *Config

@@ -148,6 +148,8 @@ func writeBlockHeader(w io.Writer, bh *blockchain.Header, lastError error) error
         lastError = writeData(w, &bh.Timestamp, lastError)
         lastError = writeData(w, &bh.Bits, lastError)
         lastError = writeData(w, &bh.Nonce, lastError)
+        txCount := byte(0)
+        lastError = writeData(w, &txCount, lastError)
     }
     return lastError
 }
@@ -160,6 +162,8 @@ func readBlockHeader(r io.Reader, bh *blockchain.Header, lastError error) error 
         lastError = readData(r, &bh.Timestamp, lastError)
         lastError = readData(r, &bh.Bits, lastError)
         lastError = readData(r, &bh.Nonce, lastError)
+        var txc byte // Read the unused tx_count
+        lastError = readData(r, &txc, lastError)
     }
     return lastError
 }

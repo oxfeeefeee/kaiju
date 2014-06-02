@@ -10,7 +10,7 @@ import (
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
 )
 
-const SendQueueSize = 16
+const SendQueueSize = 2
 
 // Peer represents and communicates to a remote bitcoin node.
 //
@@ -153,14 +153,12 @@ func (p *Peer) loopSendMsg() {
             go func() { c <- btcmsg.WriteMsg(p.conn, m.msg) } ()
             select {
             case err := <-c:
-                if err != nil {
-                    if m.errChan != nil {
-                        m.errChan <- err
-                    }
-                    running = false
-                } else {
-                    m.errChan <- nil
+                if m.errChan != nil {
+                    m.errChan <- err
                 }
+                if err != nil {
+                    running = false
+                } 
             case <-time.After(m.timeout):
                 m.errChan <- errors.New("Peer send message timeout.")
             }
@@ -203,10 +201,12 @@ func (p *Peer) handleMessage(msg btcmsg.Message) bool {
         defer p.expMutex.Unlock()
         exps := p.expectors
         for i, e := range exps {
-            if e.filter(msg) {
+            if swallow, stop := e.filter(msg); swallow {
                 e.retChan <-struct{btcmsg.Message; Error error}{msg, nil}
                 // Delete the expector
-                p.expectors = append(exps[:i], exps[i+1:]...)
+                if stop {
+                    p.expectors = append(exps[:i], exps[i+1:]...)    
+                }
                 return true
             }
         }

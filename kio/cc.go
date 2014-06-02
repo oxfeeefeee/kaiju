@@ -4,6 +4,7 @@ package kio
 import (
     "net"
     "time"
+    "math"
     "github.com/oxfeeefeee/kaiju/cst"
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
 )
@@ -63,10 +64,13 @@ func (cc *CC) onPeerDown(p *Peer) {
 
 // Member of Monitor interface
 func (cc *CC) onPeerMsg(id ID, msg btcmsg.Message) {
-    addrMsg := msg.(*btcmsg.Message_addr)
-    for _, addr := range addrMsg.Addresses {
-        cc.ap.addAddr(false, addr, 0, 0)
-    }
+    // TODO: addAddr is very slow, gorountine is a workaround for that
+    go func (){
+        addrMsg := msg.(*btcmsg.Message_addr)
+        for _, addr := range addrMsg.Addresses {
+            cc.ap.addAddr(false, addr, 0, 0)
+        }
+    }()
     //cc.ap.dump()
 }
 
@@ -80,7 +84,7 @@ func (cc *CC) doConnect(peerMonitors []Monitor) {
     }
 
     // Lower the frequency of trying to connect for failed peers
-    time.Sleep(100 * time.Duration(timesFailed) * time.Millisecond)
+    time.Sleep(time.Millisecond * 1000 * time.Duration(math.Exp2(float64(timesFailed))))
     
     // Try to connect to currently best candidate
     // 1. Remove it from the list, then add it back in whether failed to connect or not
@@ -96,7 +100,7 @@ func (cc *CC) doConnect(peerMonitors []Monitor) {
             cc.ap.addAddr(true, addr, timesFailed + 1, time.Now().Unix())
             //logger().Debugf("Failed to do handshake with peer %s: %s", addr.IP.ToNetIP(), err.Error())        
         } else {
-            logger().Debugf("Connected to peer %s", addr.IP.ToNetIP())        
+            //logger().Debugf("Connected to peer %s", addr.IP.ToNetIP())        
         }
     } else {
         cc.ap.addAddr(true, addr, timesFailed + 1, time.Now().Unix())

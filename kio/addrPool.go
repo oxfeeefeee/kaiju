@@ -6,7 +6,7 @@ import (
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
 )
 
-const maxTriesToConnectPeer = 1000
+const maxTriesToConnectPeer = 3
 
 type addrStatus struct {
     // How many times we tried to connect to this peer but failed.

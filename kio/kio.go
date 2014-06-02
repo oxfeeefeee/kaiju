@@ -7,11 +7,19 @@
 package kio
 
 import (
+    "time"
     "github.com/oxfeeefeee/kaiju/config"
     "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/cst"
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
 )
+
+const defalutSendMsgTimeout = time.Second * 10
+
+type BroadcastInclude func (*Peer) bool
+
+// Returns (isTheMessageSwallowed, shouldWeStopExpectingMessage)
+type MsgFilter func(btcmsg.Message) (bool, bool)
 
 type KIO struct {
     pool    *Pool
@@ -64,8 +72,9 @@ func MsgForMsgBlock(id ID, m btcmsg.Message, f MsgFilter) struct{btcmsg.Message;
 func ParalMsgForMsg(mg btcmsg.Message, f MsgFilter, paral int) btcmsg.Message {
     p := PeerPool()
     ids := p.AnyPeers(paral, nil)
-    ch := make(chan struct{btcmsg.Message; Error error}, 1)
+    ch := make(chan struct{btcmsg.Message; Error error}, paral)
     for _, id := range ids {
+        id := id
         go func() {
             select {
             case ch <- MsgForMsgBlock(id, mg, f):
@@ -77,6 +86,8 @@ func ParalMsgForMsg(mg btcmsg.Message, f MsgFilter, paral int) btcmsg.Message {
         me := <-ch
         if me.Error == nil {
             return me.Message
+        } else {
+            logger().Debugf("ParalMsgForMsg error : %s", me.Error)
         }
     }
     return nil

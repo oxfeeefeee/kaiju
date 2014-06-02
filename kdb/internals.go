@@ -70,8 +70,11 @@ func (db *KDB) slotScan(slotNum int64, f slotScanFunc) (int64, error) {
         buf := make([]byte, size * SlotSize, size * SlotSize)
         // "f" could change the current read position, seek is required
         db.stats.slotReadCount++
-        db.rws.Seek(db.slotsBeginPos() + i * SlotSize, 0)
-        _, err := db.rws.Read(buf)
+        _, err := db.rws.Seek(db.slotsBeginPos() + i * SlotSize, 0)
+        if err != nil {
+            return slotNum, err
+        }
+        _, err = db.rws.Read(buf)
         if err != nil {
             return slotNum, err
         }
@@ -112,7 +115,10 @@ func (db *KDB) writeSlot(key []byte, valueLoc uint32) error {
     if err != nil {
         return err
     }
-    db.rws.Seek(db.slotsBeginPos() + n * SlotSize, 0)
+    _, err = db.rws.Seek(db.slotsBeginPos() + n * SlotSize, 0)
+    if err != nil {
+        return err
+    }
     c := make([]byte, SlotSize, SlotSize)
     copy(c[:6], key[:])
     binary.LittleEndian.PutUint32(c[6:], valueLoc)
@@ -121,7 +127,10 @@ func (db *KDB) writeSlot(key []byte, valueLoc uint32) error {
 }
 
 func (db *KDB) readValue(ptr uint32, isDefaultLen bool) ([]byte, error) {
-    db.rws.Seek(db.dataBeginPos() + int64(ptr) * DefaultValueLen, 0)
+    _, err := db.rws.Seek(db.dataBeginPos() + int64(ptr) * DefaultValueLen, 0)
+    if err != nil {
+        return nil, err
+    }
     if isDefaultLen {
         value := make([]byte, DefaultValueLen, DefaultValueLen)
         _, err := db.rws.Read(value)
@@ -146,7 +155,10 @@ func (db *KDB) readValue(ptr uint32, isDefaultLen bool) ([]byte, error) {
 
 func (db *KDB) writeValue(value []byte) error {
     // Seek should cost nothing if it's already there right?
-    db.rws.Seek(db.cursor, 0)
+    _, err := db.rws.Seek(db.cursor, 0)
+    if err != nil {
+        return err
+    }
     if len(value) == DefaultValueLen {
         n, err := db.rws.Write(value)
         if err != nil {
@@ -182,7 +194,10 @@ func (db *KDB) writeValue(value []byte) error {
 
 // Header = "KDB" + a_byte_of_version + 4_byte_of_capacity
 func (db *KDB) writeHeader() error {
-    db.rws.Seek(0, 0)
+    _, err := db.rws.Seek(0, 0)
+    if err != nil {
+        return err
+    }
     buffer := []byte{'K', 'D', 'B', Version, 0, 0, 0, 0}
     binary.LittleEndian.PutUint32(buffer[4:], uint32(db.capacity))
     n, err := db.rws.Write(buffer)
@@ -195,7 +210,10 @@ func (db *KDB) writeHeader() error {
 // The size of slot chuck is pre-defined: SlotSize * 2 * Capacity
 // Only way to change the capacity is to rebuild a new DB
 func (db *KDB) writeBlankSlots() error {
-    db.rws.Seek(db.slotsBeginPos(), 0)
+    _, err := db.rws.Seek(db.slotsBeginPos(), 0)
+    if err != nil {
+        return err
+    }
     bs := 1024
     sCount := int(db.capacity) * 2
     sToGo := sCount

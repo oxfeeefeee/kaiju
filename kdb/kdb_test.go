@@ -86,7 +86,7 @@ func TestKDB(t *testing.T) {
     }
 
     cfg := config.GetConfig()
-    path := filepath.Join(config.GetConfigFileDir(), cfg.DBTempDir)
+    path := filepath.Join(config.GetConfigFileDir(), cfg.TempDataDir)
     os.MkdirAll(path, os.ModePerm)
 
     path = filepath.Join(path, "testdb.dat")
@@ -101,7 +101,7 @@ func TestKDB(t *testing.T) {
         t.Errorf(fmt.Sprintf("Failed to create file: %s", openErr))
     }
 
-    capacity := uint32(1024 * 1024)
+    capacity := uint32(1024)
     db, dberr := New(capacity, f)
     if dberr != nil {
         t.Errorf(fmt.Sprintf("Failed to create KDB: %s", dberr))

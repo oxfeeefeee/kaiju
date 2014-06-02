@@ -9,12 +9,6 @@ import (
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
     )
 
-const defalutSendMsgTimeout = time.Second * 10
-
-type BroadcastInclude func (*Peer) bool
-
-type MsgFilter func(btcmsg.Message) bool
-
 type Pool struct {
     // All Peers
     peers           map[ID]*Peer
@@ -53,14 +47,12 @@ func (pool *Pool) SendMsg(p ID, m btcmsg.Message, timeout time.Duration) <-chan 
     if ok {
         peer.sendMsg(pmsg)
     }else{
-        if pmsg.errChan != nil {
-            pmsg.errChan <- errors.New("Peer no longer in pool.")
-        }
+        pmsg.errChan <- errors.New("Peer no longer in pool.")
     }
     return pmsg.errChan
 }
 
-// Broadcast a btc message
+// Broadcast a btc message to all connected peers
 func (pool *Pool) BroadcastMsg(m btcmsg.Message, incFunc BroadcastInclude, timeout time.Duration) {
     if timeout <= 0 {
         timeout = defalutSendMsgTimeout
@@ -75,6 +67,7 @@ func (pool *Pool) BroadcastMsg(m btcmsg.Message, incFunc BroadcastInclude, timeo
     }
 }
 
+// Expect a btc message to be sent from peer "p" that matched the filter "f"
 func (pool *Pool) ExpectMsg(p ID, f MsgFilter, timeout time.Duration) <-chan struct{btcmsg.Message; Error error} {
     if timeout <= 0 {
         timeout = defalutSendMsgTimeout
@@ -144,14 +137,20 @@ func (pool *Pool) AnyPeers(count int, exclude []ID) []ID {
     return l
 }
 
+func (pool *Pool) peerCount() int {
+    pool.mutex.RLock()
+    l := len(pool.peers)
+    pool.mutex.RUnlock()
+    return l
+}
+
+// Blocks until the number of connnected peers reached "count"
 func (pool *Pool) waitPeers(count int) <-chan struct{} {
     ch := make(chan struct{}, 1)
     go func() {
         t := time.NewTicker(time.Second)
         for _ = range t.C {
-            pool.mutex.RLock()
-            defer pool.mutex.RUnlock()
-            if len(pool.peers) >= count {
+            if pool.peerCount() >= count {
                 t.Stop()
                 ch <- struct{}{}
                 return
@@ -163,7 +162,7 @@ func (pool *Pool) waitPeers(count int) <-chan struct{} {
 
 // Member of Monitor interface
 func (pool *Pool) listenTypes() []string {
-    return []string{"headers", "block"}
+    return []string{"inv", "headers", "block", "tx"}
 }
 
 // Member of Monitor interface
@@ -194,6 +193,6 @@ func (pool *Pool) onPeerDown(p *Peer) {
 
 // Member of Monitor interface
 func (pool *Pool) onPeerMsg(id ID, m btcmsg.Message) {
-    logger().Debugf("Got Message, type: %s", m.Command())
+    //logger().Debugf("Got Message, type: %s", m.Command())
 }
 
