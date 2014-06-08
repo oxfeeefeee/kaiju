@@ -8,7 +8,7 @@ import (
     "bytes"
     "errors"
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 type PeerIP struct {

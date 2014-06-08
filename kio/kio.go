@@ -10,7 +10,7 @@ import (
     "time"
     "github.com/oxfeeefeee/kaiju/config"
     "github.com/oxfeeefeee/kaiju/log"
-    "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/catma/cst"
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
 )
 
@@ -19,7 +19,7 @@ const defalutSendMsgTimeout = time.Second * 10
 type BroadcastInclude func (*Peer) bool
 
 // Returns (isTheMessageSwallowed, shouldWeStopExpectingMessage)
-type MsgFilter func(btcmsg.Message) (bool, bool)
+type MsgFilter func(btcmsg.Message) (accept bool, stop bool)
 
 type KIO struct {
     pool    *Pool
@@ -66,10 +66,32 @@ func MsgForMsgBlock(id ID, m btcmsg.Message, f MsgFilter) struct{btcmsg.Message;
     return msg
 }
 
+// Send a message and expect more than one messages in return
+// i.e. getting blocks or txs
+func MsgForMsgs(m btcmsg.Message, f MsgFilter, count int) []btcmsg.Message {
+    p := PeerPool()
+    ids := p.AnyPeers(1, nil)
+    if len(ids) == 0 {
+        return nil
+    }
+    id := ids[0]
+    ch := MsgForMsg(id, m, f)
+    msgs := make([]btcmsg.Message, 0)
+    for i := 0; i < count; i++ {
+        msg := <- ch
+        if msg.Error != nil {
+            return msgs
+        } else {
+            msgs = append(msgs, msg.Message)
+        }
+    }
+    return msgs
+}
+
 // A faster version of MsgForMsgBlock
 // Similar to http://blog.golang.org/go-concurrency-patterns-timing-out-and
 // try more and get the fastest one 
-func ParalMsgForMsg(mg btcmsg.Message, f MsgFilter, paral int) btcmsg.Message {
+func ParalMsgForMsg(m btcmsg.Message, f MsgFilter, paral int) btcmsg.Message {
     p := PeerPool()
     ids := p.AnyPeers(paral, nil)
     ch := make(chan struct{btcmsg.Message; Error error}, paral)
@@ -77,7 +99,7 @@ func ParalMsgForMsg(mg btcmsg.Message, f MsgFilter, paral int) btcmsg.Message {
         id := id
         go func() {
             select {
-            case ch <- MsgForMsgBlock(id, mg, f):
+            case ch <- MsgForMsgBlock(id, m, f):
             default:
             }
         }()

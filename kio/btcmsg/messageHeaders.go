@@ -3,18 +3,18 @@ package btcmsg
 import (
     "bytes"
     "errors"
-    "github.com/oxfeeefeee/kaiju/cst"
-    "github.com/oxfeeefeee/kaiju/blockchain"
+    "github.com/oxfeeefeee/kaiju/catma"
+    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 // Bitcoin protocol message: "headers"
 type Message_headers struct {
-    Headers       []*blockchain.Header
+    Headers       []*catma.Header
 }
 
 func NewHeadersMsg() Message {
     return &Message_headers{
-        make([]*blockchain.Header, 0),
+        make([]*catma.Header, 0),
     }
 }
 
@@ -49,9 +49,9 @@ func (m *Message_headers) Decode(payload []byte) error {
         return errors.New("Message_headers list too long")
     }
 
-    bhs := make([]*blockchain.Header, listSize)
+    bhs := make([]*catma.Header, listSize)
     for i := uint64(0); i < uint64(listSize); i++ {
-        bhs[i] = new(blockchain.Header)
+        bhs[i] = new(catma.Header)
         err = readBlockHeader(buf, bhs[i], err)
     } 
     m.Headers = bhs

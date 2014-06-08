@@ -8,7 +8,7 @@ import (
     "errors"
     "bytes"
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/catma/cst"
     "github.com/oxfeeefeee/kaiju/klib"
 )
 

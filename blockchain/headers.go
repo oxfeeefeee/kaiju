@@ -1,8 +1,3 @@
-// Header of blocks, this is where all the bitcoin magic happens:
-// - Holds the merkel tree root of the block
-// - Proof of work hash happens with headers only
-// - All the headers are chained together not the blocks
-//
 // Headers are with constant size, so the total size is predictable and stored in memory
 package blockchain
 
@@ -12,39 +7,25 @@ import (
     "fmt"
     "time"
     "sync"
-    "bytes"
     "errors"
     "encoding/binary"
+    "github.com/oxfeeefeee/kaiju/catma"
     "github.com/oxfeeefeee/kaiju/klib"
 )
 
-type Header struct {
-    // The software version which created this block
-    Version         uint32
-    // The hash of the previous block
-    PrevBlock       klib.Hash256
-    // The hash(fingerprint) of all txs in this block
-    MerkleRoot      klib.Hash256
-    // When this block was created
-    Timestamp       uint32
-    // The difficulty target being used for this block
-    Bits            uint32
-    // A random number with fileswhich to compute different hashes when mining.
-    Nonce           uint32
-}
+const (
+    InvTypeError = 0
+    InvTypeTx = 1
+    InvTypeBlock = 2
+)
 
-func (h *Header) Hash() *klib.Hash256 {
-    w := new(bytes.Buffer)  
-    binary.Write(w, binary.LittleEndian, h)
-    return klib.Sha256Sha256(w.Bytes())
-}
-
-func (h *Header) Time() time.Time {
-    return time.Unix(int64(h.Timestamp), 0)
+type InvElement struct {
+    InvType     uint32
+    Hash        klib.Hash256
 }
 
 type HChain struct {
-    headers     []*Header
+    headers     []*catma.Header
     mutex       sync.RWMutex
     file        *os.File
 } 
@@ -54,7 +35,7 @@ var chainIns *HChain
 func Chain() *HChain {
     if chainIns == nil {
         chainIns = &HChain{
-            headers :[]*Header{genesisHeader()},
+            headers :[]*catma.Header{genesisHeader()},
             file : fileHeaders()}
         chainIns.loadHeaders()
     }
@@ -81,9 +62,19 @@ func (hc *HChain) GetLocator() []*klib.Hash256 {
     return ltor
 }
 
+// Get an array of InvElement to make a "getdata" message
+func (hc *HChain) GetInv(heights []int) []*InvElement {
+    inv := make([]*InvElement, 0)
+    for _, h := range heights {
+        ele := &InvElement{InvTypeBlock, *(hc.headers[h].Hash())}
+        inv = append(inv, ele)
+    }
+    return inv
+}
+
 // Append newly downloaded headers.
 // TODO: This is somewhat broken, malicious remote peers could break this process.
-func (hc *HChain) AppendHeaders(hs []*Header) error {
+func (hc *HChain) AppendHeaders(hs []*catma.Header) error {
     logger().Debugf("Append header count: %v", len(hs))
     if len(hs) == 0 {
         return nil
@@ -118,7 +109,7 @@ func (hc *HChain) AppendHeaders(hs []*Header) error {
 func (hc *HChain) loadHeaders() {
     r := hc.file
     for {
-        h := new(Header)
+        h := new(catma.Header)
         if err := binary.Read(r, binary.LittleEndian, h); err == nil {
             if err = hc.appendHeader(h); err != nil {
                 logger().Printf("Error loading block header: %s", err)
@@ -135,7 +126,7 @@ func (hc *HChain) loadHeaders() {
 }   
 
 // Append new block header, the chain always has at least genesis in it.
-func (hc *HChain) appendHeader(h *Header) error {
+func (hc *HChain) appendHeader(h *catma.Header) error {
     hc.mutex.Lock()
     defer hc.mutex.Unlock()
     c := hc.headers
@@ -163,8 +154,8 @@ func locatorIndices(h int) []int {
     return l
 }
 
-func genesisHeader() *Header {
-    h := new(Header)
+func genesisHeader() *catma.Header {
+    h := new(catma.Header)
     h.Version = 1
     h.MerkleRoot.SetString("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b")
     h.Timestamp = 1231006505

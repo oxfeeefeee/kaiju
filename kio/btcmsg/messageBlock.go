@@ -3,18 +3,19 @@ package btcmsg
 import (
     "bytes"
     "errors"
-    "github.com/oxfeeefeee/kaiju/cst"
-    "github.com/oxfeeefeee/kaiju/blockchain"
+    "github.com/oxfeeefeee/kaiju/catma"
+    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 // Bitcoin protocol message: "block"
 type Message_block struct {
-    Header      *blockchain.Header
+    Header      *catma.Header
     Txs         []*Tx        
 }
 
 func NewBlockMsg() Message {
     return &Message_block{
+        Header: new(catma.Header),
     }
 }
 
@@ -54,7 +55,7 @@ func (m *Message_block) Decode(payload []byte) error {
     txs := make([]*Tx, listSize)
     for i := uint64(0); i < uint64(listSize); i++ {
         txs[i] = new(Tx)
-        err = readData(buf, txs[i], err)
+        err = readTx(buf, txs[i], err)
     } 
     m.Txs = txs
     return err

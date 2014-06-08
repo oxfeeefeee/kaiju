@@ -16,7 +16,7 @@ import (
 
 func catchUp() {
     for moreHeaders() {}
-    //for moreBlocks() {}
+    for moreBlocks() {}
 }
 
 func moreHeaders() bool {
@@ -44,5 +44,56 @@ func moreHeaders() bool {
 }
 
 func moreBlocks() bool {
+    idx := make([]int, 0)
+    for i := 1; i <= 500; i++ {
+        idx = append(idx, i)
+    }
+    logger().Debugf("aaaaaaaa")
+    blocks := getBlocks(idx)
+    for _, b := range blocks {
+        logger().Debugf("%s \n", b.(*btcmsg.Message_block).Header)
+    }
     return true
 }
+
+func getBlocks(idx []int) []btcmsg.Message {
+    c := blockchain.Chain()
+    inv := c.GetInv(idx)
+    msg := btcmsg.NewGetDataMsg()
+    m := msg.(*btcmsg.Message_getdata)
+    m.Inventory = inv
+
+    // Make a map of hash->bool, to be used to check if a incomming block is expected
+    record := make(map[klib.Hash256]bool)
+    for _, e := range inv {
+        record[e.Hash]= false
+    }
+    count := len(idx)
+    f := func(m btcmsg.Message) (accept bool, stop bool) {
+        accept, stop = false, false
+        bmsg, ok := m.(*btcmsg.Message_block)
+        if ok {
+            hash := bmsg.Header.Hash()
+            b, ok := record[*hash]
+            if ok { // Is expected block
+                accept = true
+                if !b { // We didn't get it before
+                    record[*hash] = true
+                    count -= 1
+                    if count <= 0 {
+                        stop = true
+                    }
+                }
+            }
+        }
+        return
+    }
+    return kio.MsgForMsgs(m, f, len(inv))
+}
+
+
+
+
+
+
+

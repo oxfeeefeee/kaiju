@@ -5,7 +5,7 @@ import (
     "net"
     "time"
     "math"
-    "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/catma/cst"
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
 )
 

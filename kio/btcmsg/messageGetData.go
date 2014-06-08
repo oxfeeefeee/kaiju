@@ -5,8 +5,8 @@ package btcmsg
 type Message_getdata Message_inv
 
 func NewGetDataMsg() Message {
-    var msg Message = NewInvMsg()
-    return msg.(*Message_getdata)
+    msg := NewInvMsg()
+    return (*Message_getdata)(msg.(*Message_inv))
 }
 
 func (m *Message_getdata) Command() string {
@@ -14,11 +14,9 @@ func (m *Message_getdata) Command() string {
 }
 
 func (m *Message_getdata) Encode() ([]byte, error) {
-    var msg Message = m
-    return msg.(*Message_inv).Encode()
+    return ((*Message_inv)(m)).Encode()
 }
 
 func (m *Message_getdata) Decode(payload []byte) error {
-    var msg Message = m
-    return msg.(Message).(*Message_inv).Decode(payload)
+    return ((*Message_inv)(m)).Decode(payload)
 }

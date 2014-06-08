@@ -201,7 +201,7 @@ func (p *Peer) handleMessage(msg btcmsg.Message) bool {
         defer p.expMutex.Unlock()
         exps := p.expectors
         for i, e := range exps {
-            if swallow, stop := e.filter(msg); swallow {
+            if accept, stop := e.filter(msg); accept {
                 e.retChan <-struct{btcmsg.Message; Error error}{msg, nil}
                 // Delete the expector
                 if stop {

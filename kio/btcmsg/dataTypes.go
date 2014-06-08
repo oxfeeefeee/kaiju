@@ -5,10 +5,9 @@ import (
     "io"
     "errors"
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/log"
-    "github.com/oxfeeefeee/kaiju/cst"
-    "github.com/oxfeeefeee/kaiju/blockchain"
+    "github.com/oxfeeefeee/kaiju/catma"
+    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 // The interface of all the message types that are used in bitcoin network protocol
@@ -28,12 +27,7 @@ type VarUint uint64
 // Encoded as a VarUint representing the length of the string, followed by the content of the string
 type VarString []byte
 
-type InvElement struct {
-    InvType     uint32
-    Hash        klib.Hash256
-}
-
-type Tx blockchain.Tx
+type Tx catma.Tx
 
 func writeVarUint(w io.Writer, vuint *VarUint, lastError error) error {
     if lastError != nil {
@@ -140,7 +134,7 @@ func readVarString(r io.Reader, p *VarString, lastError error) error {
     return nil
 }
 
-func writeBlockHeader(w io.Writer, bh *blockchain.Header, lastError error) error {
+func writeBlockHeader(w io.Writer, bh *catma.Header, lastError error) error {
     if lastError == nil {
         lastError = writeData(w, &bh.Version, lastError)
         lastError = writeData(w, &bh.PrevBlock, lastError)
@@ -154,7 +148,7 @@ func writeBlockHeader(w io.Writer, bh *blockchain.Header, lastError error) error
     return lastError
 }
 
-func readBlockHeader(r io.Reader, bh *blockchain.Header, lastError error) error {
+func readBlockHeader(r io.Reader, bh *catma.Header, lastError error) error {
     if lastError == nil {
         lastError = readData(r, &bh.Version, lastError)
         lastError = readData(r, &bh.PrevBlock, lastError)
@@ -202,10 +196,10 @@ func readTx(r io.Reader, tx *Tx, lastError error) error {
     } else if listSize > VarUint(cst.MaxInvListSize) {
         return errors.New("TxIn list too long")
     }
-    tx.TxIns = make([]*blockchain.TxIn, listSize)
+    tx.TxIns = make([]*catma.TxIn, listSize)
     txins := tx.TxIns
     for i := uint64(0); i < uint64(listSize); i++ {
-        txins[i] = new(blockchain.TxIn)
+        txins[i] = new(catma.TxIn)
         lastError = readData(r, &txins[i].PreviousOutput, lastError)
         lastError = readVarString(r, (*VarString)(&txins[i].SigScript), lastError)
         lastError = readData(r, &txins[i].Sequence, lastError)
@@ -216,10 +210,10 @@ func readTx(r io.Reader, tx *Tx, lastError error) error {
     } else if listSize > VarUint(cst.MaxInvListSize) {
         return errors.New("TxOut list too long")
     }
-    tx.TxOuts = make([]*blockchain.TxOut, listSize)
+    tx.TxOuts = make([]*catma.TxOut, listSize)
     txouts := tx.TxOuts
     for i := uint64(0); i < uint64(listSize); i++ {
-        txouts[i] = new(blockchain.TxOut)
+        txouts[i] = new(catma.TxOut)
         lastError = readData(r, &txouts[i].Value, lastError)
         lastError = readVarString(r, (*VarString)(&txouts[i].PKScript), lastError)
     }

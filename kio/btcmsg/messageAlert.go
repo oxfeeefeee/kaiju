@@ -4,7 +4,7 @@ import (
     "bytes"
     "errors"
     "encoding/hex"
-    "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 // Bitcoin protocol message: "alert"

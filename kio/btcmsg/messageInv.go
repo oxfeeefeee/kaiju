@@ -4,12 +4,13 @@ package btcmsg
 import (
     "bytes"
     "errors"
-    "github.com/oxfeeefeee/kaiju/cst"
+    "github.com/oxfeeefeee/kaiju/catma/cst"
+    "github.com/oxfeeefeee/kaiju/blockchain"
 )
 
 // Bitcoin protocol message: "inv"
 type Message_inv struct {
-    Inventory       []*InvElement
+    Inventory       []*blockchain.InvElement
 }
 
 func NewInvMsg() Message {
@@ -48,9 +49,9 @@ func (m *Message_inv) Decode(payload []byte) error {
         return errors.New("Message_inv list too long")
     }
 
-    inv := make([]*InvElement, listSize)
+    inv := make([]*blockchain.InvElement, listSize)
     for i := uint64(0); i < uint64(listSize); i++ {
-        inv[i] = new(InvElement)
+        inv[i] = new(blockchain.InvElement)
         err = readData(buf, inv[i], err)
     } 
     m.Inventory = inv
