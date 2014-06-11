@@ -42,26 +42,13 @@ func (bh *blockHeader) Deserialize(r io.Reader) error {
     return lastError
 }
 
-func (tx *Tx) Serialize(w io.Writer) error {
-    lastError := writeData(w, &tx.Version, nil)
-    var listSize klib.VarUint = klib.VarUint(len(tx.TxIns))
-    lastError = writeData(w, &listSize, lastError)
-    for _, txin := range tx.TxIns {
-        lastError = writeData(w, &txin.PreviousOutput, lastError)
-        lastError = writeData(w, (*klib.VarString)(&txin.SigScript), lastError)
-        lastError = writeData(w, &txin.Sequence, lastError)
-    }
-    listSize = klib.VarUint(len(tx.TxOuts))
-    lastError = writeData(w, &listSize, lastError)
-    for _, txout := range tx.TxOuts {
-        lastError = writeData(w, &txout.Value, lastError)
-        lastError = writeData(w, (*klib.VarString)(&txout.PKScript), lastError)
-    }
-    lastError = writeData(w, &tx.LockTime, lastError)
-    return lastError
-}
-
 type Tx catma.Tx
+
+func (tx *Tx) Serialize(w io.Writer) error {
+    t := (*catma.Tx)(tx)
+    _, err := w.Write(t.Bytes())
+    return err
+}
 
 func (tx *Tx) Deserialize(r io.Reader) error {
     lastError := readData(r, &tx.Version, nil)
