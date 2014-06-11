@@ -1,4 +1,4 @@
-package btcmsg
+package klib
 
 import (
     "bytes"
@@ -10,12 +10,12 @@ func encodeAndDecodeVarUnit(t *testing.T, v uint64) {
     buf := new(bytes.Buffer)
     var err error;
     vi := VarUint(v)
-    err = writeVarUint(buf, &vi, err)
+    err = vi.Serialize(buf)
     if err != nil {
         t.Errorf("Encode error : %s", err.Error())
     }
     logger().Debugf("Encoded: %v", buf.Bytes())
-    err = readVarUint(buf, &vi, err)
+    err = vi.Deserialize(buf)
     if err != nil {
         t.Errorf("Decode error : %s", err.Error())
     }

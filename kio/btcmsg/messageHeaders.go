@@ -3,6 +3,7 @@ package btcmsg
 import (
     "bytes"
     "errors"
+    "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma"
     "github.com/oxfeeefeee/kaiju/catma/cst"
 )
@@ -26,10 +27,10 @@ func (m *Message_headers) Encode() ([]byte, error) {
     buf := new(bytes.Buffer)
     var err error;
 
-    listSize := VarUint(len(m.Headers))
-    err = writeVarUint(buf, &listSize, err)
+    listSize := klib.VarUint(len(m.Headers))
+    err = writeData(buf, &listSize, err)
     for _, h := range m.Headers {
-        err = writeBlockHeader(buf, h, err)
+        err = writeData(buf, h, err)
     }
     if err != nil {
         return nil, err;
@@ -40,19 +41,19 @@ func (m *Message_headers) Encode() ([]byte, error) {
 func (m *Message_headers) Decode(payload []byte) error {
     buf := bytes.NewBuffer(payload)
     var err error;
-    var listSize VarUint;
+    var listSize klib.VarUint;
 
-    err = readVarUint(buf, &listSize, err)
+    err = readData(buf, &listSize, err)
     if err != nil {
         return err
-    } else if listSize > VarUint(cst.MaxInvListSize) {
+    } else if listSize > klib.VarUint(cst.MaxInvListSize) {
         return errors.New("Message_headers list too long")
     }
 
     bhs := make([]*catma.Header, listSize)
     for i := uint64(0); i < uint64(listSize); i++ {
         bhs[i] = new(catma.Header)
-        err = readBlockHeader(buf, bhs[i], err)
+        err = readData(buf, bhs[i], err)
     } 
     m.Headers = bhs
     return err

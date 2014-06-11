@@ -4,6 +4,7 @@ import (
     "bytes"
     "errors"
     "encoding/hex"
+    "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
@@ -33,12 +34,12 @@ func (m *Message_alert) Encode() ([]byte, error) {
 func (m *Message_alert) Decode(payload []byte) error {
     buf := bytes.NewBuffer(payload)
     var lastError error
-    var contentLen, signatureLen VarUint
+    var contentLen, signatureLen klib.VarUint
 
-    lastError = readVarUint(buf, &contentLen, lastError) 
+    lastError = readData(buf, &contentLen, lastError) 
     if lastError != nil {
         return lastError
-    } else if contentLen > VarUint(cst.MaxAlertSize) {
+    } else if contentLen > klib.VarUint(cst.MaxAlertSize) {
         return errors.New("alert content is too long")
     }
     m.Content = make([]byte, contentLen)
@@ -47,10 +48,10 @@ func (m *Message_alert) Decode(payload []byte) error {
         return lastError
     }
 
-    lastError = readVarUint(buf, &signatureLen, lastError) 
+    lastError = readData(buf, &signatureLen, lastError) 
     if lastError != nil {
         return lastError
-    } else if contentLen > VarUint(cst.MaxAlertSingnatureSize) {
+    } else if contentLen > klib.VarUint(cst.MaxAlertSingnatureSize) {
         return errors.New("alert singature is too long")
     }
     sing := make([]byte, signatureLen)

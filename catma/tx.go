@@ -1,6 +1,8 @@
 package catma
 
 import (
+    "bytes"
+    "encoding/binary"
     "github.com/oxfeeefeee/kaiju/klib"
 )
 
@@ -32,4 +34,27 @@ type Tx struct {
     TxIns           []*TxIn
     TxOuts          []*TxOut
     LockTime        uint32
+}
+
+func (t *Tx) Hash() *klib.Hash256 {
+    return klib.Sha256Sha256(t.Bytes())
+}
+
+func (t *Tx) Bytes() []byte {
+    p := new(bytes.Buffer)
+    binary.Write(p, binary.LittleEndian, t.Version)
+
+    p.Write(klib.VarUint(len(t.TxIns)).Bytes())
+    for _, txin := range t.TxIns {
+        binary.Write(p, binary.LittleEndian, txin.PreviousOutput)
+        p.Write(((*klib.VarString)(&txin.SigScript)).Bytes())
+        binary.Write(p, binary.LittleEndian, txin.Sequence)
+    }
+    p.Write(klib.VarUint(len(t.TxOuts)).Bytes())
+    for _, txout := range t.TxOuts {
+        binary.Write(p, binary.LittleEndian, txout.Value)
+        p.Write(((*klib.VarString)(&txout.PKScript)).Bytes())
+    }
+    binary.Write(p, binary.LittleEndian, t.LockTime)
+    return p.Bytes()
 }

@@ -4,6 +4,7 @@ package klib
 
 import (
     "crypto/sha256"
+    "github.com/oxfeeefeee/kaiju/log"
     )
 
 func Sha256Sha256(p []byte) *Hash256 {
@@ -15,4 +16,9 @@ func Sha256Sha256(p []byte) *Hash256 {
     sha.Write(h[:])
     copy(h[:], sha.Sum(nil)[:])
     return h
+}
+
+// Handy function
+func logger() *log.Logger {
+    return log.KlibLogger
 }

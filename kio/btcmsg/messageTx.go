@@ -21,7 +21,7 @@ func (m *Message_tx) Command() string {
 func (m *Message_tx) Encode() ([]byte, error) {
     buf := new(bytes.Buffer)
     var err error;
-    err = writeTx(buf, &m.Content, err)
+    err = writeData(buf, &m.Content, err)
     if err != nil {
         return nil, err;
     }
@@ -31,5 +31,5 @@ func (m *Message_tx) Encode() ([]byte, error) {
 func (m *Message_tx) Decode(payload []byte) error {
     buf := bytes.NewBuffer(payload)
     var err error;
-    return readTx(buf, &m.Content, err)
+    return readData(buf, &m.Content, err)
 }

@@ -29,9 +29,9 @@ type Header struct {
 }
 
 func (h *Header) Hash() *klib.Hash256 {
-    w := new(bytes.Buffer)  
-    binary.Write(w, binary.LittleEndian, h)
-    return klib.Sha256Sha256(w.Bytes())
+    p := new(bytes.Buffer)  
+    binary.Write(p, binary.LittleEndian, h)
+    return klib.Sha256Sha256(p.Bytes())
 }
 
 func (h *Header) Time() time.Time {

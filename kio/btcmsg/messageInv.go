@@ -4,6 +4,7 @@ package btcmsg
 import (
     "bytes"
     "errors"
+    "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma/cst"
     "github.com/oxfeeefeee/kaiju/blockchain"
 )
@@ -26,8 +27,8 @@ func (m *Message_inv) Encode() ([]byte, error) {
     buf := new(bytes.Buffer)
     var err error;
     
-    listSize := VarUint(len(m.Inventory))
-    err = writeVarUint(buf, &listSize, err)
+    listSize := klib.VarUint(len(m.Inventory))
+    err = writeData(buf, &listSize, err)
     for _, e := range m.Inventory {
         err = writeData(buf, e, err)
     }
@@ -40,12 +41,12 @@ func (m *Message_inv) Encode() ([]byte, error) {
 func (m *Message_inv) Decode(payload []byte) error {
     buf := bytes.NewBuffer(payload)
     var err error;
-    var listSize VarUint;
+    var listSize klib.VarUint;
 
-    err = readVarUint(buf, &listSize, err)
+    err = readData(buf, &listSize, err)
     if err != nil {
         return err
-    } else if listSize > VarUint(cst.MaxInvListSize) {
+    } else if listSize > klib.VarUint(cst.MaxInvListSize) {
         return errors.New("Message_inv list too long")
     }
 

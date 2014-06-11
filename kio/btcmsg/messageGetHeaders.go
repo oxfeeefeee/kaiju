@@ -4,8 +4,8 @@ package btcmsg
 import (
     "bytes"
     "errors"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
     "github.com/oxfeeefeee/kaiju/klib"
+    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 type Message_getheaders struct {
@@ -31,8 +31,8 @@ func (m *Message_getheaders) Encode() ([]byte, error) {
     var err error;
 
     err = writeData(buf, m.Version, err)
-    listSize := VarUint(len(m.BlockLocators))
-    err = writeVarUint(buf, &listSize, err)
+    listSize := klib.VarUint(len(m.BlockLocators))
+    err = writeData(buf, &listSize, err)
     for _, l := range m.BlockLocators {
         err = writeData(buf, l, err)
     }
@@ -46,13 +46,13 @@ func (m *Message_getheaders) Encode() ([]byte, error) {
 func (m *Message_getheaders) Decode(payload []byte) error {
     buf := bytes.NewBuffer(payload)
     var err error;
-    var listSize VarUint;
+    var listSize klib.VarUint;
 
     err = readData(buf, &m.Version, err)
-    err = readVarUint(buf, &listSize, err)
+    err = readData(buf, &listSize, err)
     if err != nil {
         return err
-    } else if listSize > VarUint(cst.MaxInvListSize) {
+    } else if listSize > klib.VarUint(cst.MaxInvListSize) {
         return errors.New("Message_getheaders/Message_geblocks list too long")
     }
 

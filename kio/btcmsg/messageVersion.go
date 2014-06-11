@@ -4,6 +4,7 @@ package btcmsg
 import (
     "bytes"
     "time"
+    "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
@@ -15,7 +16,7 @@ type Message_version struct {
     Addr_recv       *PeerInfo
     Addr_from       *PeerInfo
     Nonce           uint64
-    User_agent      VarString
+    User_agent      klib.VarString
     Start_height    int32
     Relay           byte
 }
@@ -29,7 +30,7 @@ func NewLocalVersionMsg(addrRecv *PeerInfo) *Message_version {
         addrRecv,
         addrFrom,
         cst.NounceInVersionMsg,
-        VarString(cst.UserAgent),
+        klib.VarString(cst.UserAgent),
         1,
         0,
     }
@@ -56,7 +57,7 @@ func (m *Message_version) Encode() ([]byte, error) {
     err = writePeerInfo(buf, m.Addr_recv, false, err)
     err = writePeerInfo(buf, m.Addr_from, false, err)
     err = writeData(buf, &m.Nonce, err)
-    err = writeVarString(buf, &m.User_agent, err)
+    err = writeData(buf, &m.User_agent, err)
     err = writeData(buf, &m.Start_height, err)
     err = writeData(buf, &m.Relay, err)
 
@@ -76,7 +77,7 @@ func (m *Message_version) Decode(payload []byte) error {
     err = readPeerInfo(buf, m.Addr_recv, false, err)
     err = readPeerInfo(buf, m.Addr_from, false, err)
     err = readData(buf, &m.Nonce, err)
-    err = readVarString(buf, &m.User_agent, err)
+    err = readData(buf, &m.User_agent, err)
     err = readData(buf, &m.Start_height, err)
     err = readData(buf, &m.Relay, err)
     

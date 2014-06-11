@@ -8,6 +8,7 @@ import (
     "bytes"
     "errors"
     "encoding/binary"
+    "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
@@ -97,8 +98,8 @@ func (m *Message_addr) Command() string {
 func (m *Message_addr) Encode() ([]byte, error) {
     buf := new(bytes.Buffer)
     var err error;
-    listSize := VarUint(len(m.Addresses))
-    err = writeVarUint(buf, &listSize, err)
+    listSize := klib.VarUint(len(m.Addresses))
+    err = writeData(buf, &listSize, err)
     if err != nil {
         return nil, err
     }
@@ -115,14 +116,14 @@ func (m *Message_addr) Encode() ([]byte, error) {
 func (m *Message_addr) Decode(payload []byte) error {
     buf := bytes.NewBuffer(payload)
     var err error;
-    var listSize VarUint;
+    var listSize klib.VarUint;
 
-    err = readVarUint(buf, &listSize, err)
+    err = readData(buf, &listSize, err)
     if err != nil {
         return err
     }
     
-    if listSize > VarUint(cst.MaxAddrListSize) {
+    if listSize > klib.VarUint(cst.MaxAddrListSize) {
         return errors.New(fmt.Sprintf("Message_addr list too long: %v", listSize))
     }
 
