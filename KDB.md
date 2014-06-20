@@ -44,7 +44,7 @@ People can choose to only keep unspent TXs and do not store and serve older bloc
 
 To build a smaller and faster TXDatabase, there are some optimizations can be done:
 - A TX uses a 256 bit hash to reference a privious TX as an input. We can instead use a 64 bit hash and deal with the rare but possible collisions  
-- For a standard Pay-to-PubkeyHash TX, the only infomation we need to keep is the PubkeyHash, the rest are all the same among all the standard TXs.
+- For a standard TXs, the only infomation we need to keep is the Pubkey/Hash, the rest are all the same among all the standard TXs.(Already been done by Satoshi client)
 
 The design of KDB is inspired by CDB, which is a ready-only database. To make the ready-only database fit out needs:
 - Start with a relatively large key space

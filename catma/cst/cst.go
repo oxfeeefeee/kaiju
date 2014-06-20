@@ -43,3 +43,5 @@ const DialTimeout = 2000
 
 const MaxMessagePayload = 4 * 1024 * 1024
 
+const KDBCapacity = 10 * 1024 * 1024
+

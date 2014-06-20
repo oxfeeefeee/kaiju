@@ -4,6 +4,7 @@ package klib
 
 import (
     "crypto/sha256"
+    "encoding/binary"
     "github.com/oxfeeefeee/kaiju/log"
     )
 
@@ -16,6 +17,18 @@ func Sha256Sha256(p []byte) *Hash256 {
     sha.Write(h[:])
     copy(h[:], sha.Sum(nil)[:])
     return h
+}
+
+func UInt16ToBytes(i uint16) []byte {
+    p := make([]byte, 2)
+    binary.LittleEndian.PutUint16(p, i)
+    return p
+}
+
+func UInt32ToBytes(i uint32) []byte {
+    p := make([]byte, 4)
+    binary.LittleEndian.PutUint32(p, i)
+    return p
 }
 
 // Handy function
