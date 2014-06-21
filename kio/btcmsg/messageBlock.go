@@ -3,9 +3,9 @@ package btcmsg
 import (
     "bytes"
     "errors"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 // Bitcoin protocol message: "block"
@@ -49,7 +49,7 @@ func (m *Message_block) Decode(payload []byte) error {
     err = readData(buf, &listSize, err)
     if err != nil {
         return err
-    } else if listSize > klib.VarUint(cst.MaxInvListSize) {
+    } else if listSize > klib.VarUint(kaiju.MaxInvListSize) {
         return errors.New("Message_block list too long")
     }
 

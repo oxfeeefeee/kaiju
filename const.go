@@ -1,5 +1,5 @@
-// Const, but we cannot call it const, thus cst
-package cst
+// Constants
+package kaiju
 
 import (
     "time"

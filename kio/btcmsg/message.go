@@ -5,10 +5,9 @@ import (
     "io"
     "errors"
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju/log"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 // The interface of all the message types that are used in bitcoin network protocol
@@ -29,14 +28,14 @@ type Readable interface {
 type blockHeader catma.Header
 
 func (bh *blockHeader) Serialize(w io.Writer) error {
-    lastError := writeData(w, bh, nil)
+    lastError := writeData(w, (*catma.Header)(bh), nil)
     txCount := byte(0)
     lastError = writeData(w, &txCount, lastError)
     return lastError
 }
 
 func (bh *blockHeader) Deserialize(r io.Reader) error {
-    lastError := readData(r, bh, nil)
+    lastError := readData(r, (*catma.Header)(bh), nil)
     var txc byte // Read the unused tx_count
     lastError = readData(r, &txc, lastError)
     return lastError
@@ -56,7 +55,7 @@ func (tx *Tx) Deserialize(r io.Reader) error {
     lastError = readData(r, &listSize, lastError)
     if lastError != nil {
         return lastError
-    } else if listSize > klib.VarUint(cst.MaxInvListSize) {
+    } else if listSize > klib.VarUint(kaiju.MaxInvListSize) {
         return errors.New("TxIn list too long")
     }
     tx.TxIns = make([]*catma.TxIn, listSize)
@@ -70,7 +69,7 @@ func (tx *Tx) Deserialize(r io.Reader) error {
     lastError = readData(r, &listSize, lastError)
     if lastError != nil {
         return lastError
-    } else if listSize > klib.VarUint(cst.MaxInvListSize) {
+    } else if listSize > klib.VarUint(kaiju.MaxInvListSize) {
         return errors.New("TxOut list too long")
     }
     tx.TxOuts = make([]*catma.TxOut, listSize)
@@ -109,6 +108,6 @@ func readData(r io.Reader, data interface{}, lastError error) error {
 }
 
 // Handy function
-func logger() *log.Logger {
-    return log.KioMsgLogger
+func logger() *kaiju.Logger {
+    return kaiju.KioMsgLogger
 }

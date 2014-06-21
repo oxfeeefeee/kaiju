@@ -2,8 +2,8 @@ package blockchain
 
 import (
     "errors"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
-    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/catma"
 )
 
@@ -68,8 +68,7 @@ func (l *Ledger) validateInput(txi *catma.TxIn) (int64, error) {
     }
 }
 
-
 // Handy function
-func logger() *log.Logger {
-    return log.BlockchainLogger
+func logger() *kaiju.Logger {
+    return kaiju.BlockchainLogger
 }

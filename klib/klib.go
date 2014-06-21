@@ -5,7 +5,7 @@ package klib
 import (
     "crypto/sha256"
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju/log"
+    "github.com/oxfeeefeee/kaiju"
     )
 
 func Sha256Sha256(p []byte) *Hash256 {
@@ -32,6 +32,6 @@ func UInt32ToBytes(i uint32) []byte {
 }
 
 // Handy function
-func logger() *log.Logger {
-    return log.KlibLogger
+func logger() *kaiju.Logger {
+    return kaiju.KlibLogger
 }

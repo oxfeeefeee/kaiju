@@ -4,8 +4,8 @@ package btcmsg
 import (
     "bytes"
     "errors"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 type Message_getheaders struct {
@@ -16,7 +16,7 @@ type Message_getheaders struct {
 
 func NewGetHeadersMsg() Message {
     return &Message_getheaders{
-        cst.ProtocolVersion,
+        kaiju.ProtocolVersion,
         nil,
         nil,
     }
@@ -52,7 +52,7 @@ func (m *Message_getheaders) Decode(payload []byte) error {
     err = readData(buf, &listSize, err)
     if err != nil {
         return err
-    } else if listSize > klib.VarUint(cst.MaxInvListSize) {
+    } else if listSize > klib.VarUint(kaiju.MaxInvListSize) {
         return errors.New("Message_getheaders/Message_geblocks list too long")
     }
 

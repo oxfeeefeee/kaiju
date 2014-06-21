@@ -3,7 +3,7 @@ package script
 import (
     "errors"
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju/log"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
     )
 
@@ -94,13 +94,9 @@ func (s Script) getOpcode(p int) (op Opcode, operand []byte, next int, err error
 }
 
 // Handy function
-func logger() *log.Logger {
-    return log.CatmaScriptLogger
+func logger() *kaiju.Logger {
+    return kaiju.CatmaScriptLogger
 }
-
-
-
-
 
 
 

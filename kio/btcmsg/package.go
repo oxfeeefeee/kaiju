@@ -8,7 +8,7 @@ import (
     "errors"
     "bytes"
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
 )
 
@@ -61,7 +61,7 @@ func ReadMsg(r io.Reader) (Message, error) {
     if err != nil {
         return nil, err
     }
-    if header.Length > cst.MaxMessagePayload {
+    if header.Length > kaiju.MaxMessagePayload {
         return nil, errors.New("Error reading BTC message data : package too big")
     }
     payload := make([]byte, header.Length)
@@ -87,7 +87,7 @@ type PackageHeader struct {
 
 func newPackageHeader(msgType string, payload []byte) *PackageHeader {
     header := new(PackageHeader)
-    header.Magic = cst.NetWorkMagicMain
+    header.Magic = kaiju.NetWorkMagicMain
     header.setCommand(msgType)
     header.Length = uint32(len(payload))
     header.Checksum = getChecksumForPayload(payload)

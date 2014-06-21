@@ -8,8 +8,8 @@ import (
     "bytes"
     "errors"
     "encoding/binary"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 type PeerIP struct {
@@ -42,7 +42,7 @@ func NewPeerInfo() *PeerInfo {
     // TODO: cache it to reduce gc overhead
     return &PeerInfo{
         uint32(time.Now().Unix()),
-        cst.NodeServices,
+        kaiju.NodeServices,
         PeerIP{},
         0,
     }
@@ -123,7 +123,7 @@ func (m *Message_addr) Decode(payload []byte) error {
         return err
     }
     
-    if listSize > klib.VarUint(cst.MaxAddrListSize) {
+    if listSize > klib.VarUint(kaiju.MaxAddrListSize) {
         return errors.New(fmt.Sprintf("Message_addr list too long: %v", listSize))
     }
 

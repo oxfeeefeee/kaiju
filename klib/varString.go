@@ -3,7 +3,7 @@ package klib
 import (
     "io"
     "errors"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
+    "github.com/oxfeeefeee/kaiju"
 )
 
 // Encoded as a VarUint representing the length of the string, followed by the content of the string
@@ -24,7 +24,7 @@ func (s *VarString) Deserialize(r io.Reader) error {
     err := strLen.Deserialize(r)
     if err != nil {
         return err
-    } else if strLen > VarUint(cst.MaxStrSize) {
+    } else if strLen > VarUint(kaiju.MaxStrSize) {
         return errors.New("String too long")
     }
 

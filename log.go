@@ -1,4 +1,4 @@
-package log
+package kaiju
 
 import (
     "log"
@@ -6,7 +6,6 @@ import (
     "fmt"
     "strings"
     )
-
 
 var mainLogger, KioLogger, KioMsgLogger, KlibLogger *Logger
 var KDBLogger, BlockchainLogger, BrainLogger *Logger

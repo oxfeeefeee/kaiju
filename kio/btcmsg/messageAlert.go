@@ -4,8 +4,8 @@ import (
     "bytes"
     "errors"
     "encoding/hex"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 // Bitcoin protocol message: "alert"
@@ -16,7 +16,7 @@ type Message_alert struct {
 var alertPubKey []byte
 
 func init() {
-    alertPubKey, _ = hex.DecodeString(cst.AlertPublicKey)
+    alertPubKey, _ = hex.DecodeString(kaiju.AlertPublicKey)
 } 
 
 func NewAlertMsg() Message {
@@ -39,7 +39,7 @@ func (m *Message_alert) Decode(payload []byte) error {
     lastError = readData(buf, &contentLen, lastError) 
     if lastError != nil {
         return lastError
-    } else if contentLen > klib.VarUint(cst.MaxAlertSize) {
+    } else if contentLen > klib.VarUint(kaiju.MaxAlertSize) {
         return errors.New("alert content is too long")
     }
     m.Content = make([]byte, contentLen)
@@ -51,7 +51,7 @@ func (m *Message_alert) Decode(payload []byte) error {
     lastError = readData(buf, &signatureLen, lastError) 
     if lastError != nil {
         return lastError
-    } else if contentLen > klib.VarUint(cst.MaxAlertSingnatureSize) {
+    } else if contentLen > klib.VarUint(kaiju.MaxAlertSingnatureSize) {
         return errors.New("alert singature is too long")
     }
     sing := make([]byte, signatureLen)

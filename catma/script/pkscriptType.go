@@ -31,20 +31,14 @@ func (t PKScriptType) String() string {
     }
 }
 
-func (s Script) Type() PKScriptType {
+func (s Script) PKSType() PKScriptType {
     switch {
-    case s.IsTypePubKey():
-        return PKS_PUBKEY
-    case s.IsTypePubKeyHash():
-        return PKS_PUBKEYHASH
-    case s.IsTypeScriptHash():
-        return PKS_SCRIPTHASH
-    case s.IsTypeNullData():
-        return PKS_NULLDATA
-    case s.IsTypeMultiSig():
-        return PKS_MULTISIG
-    default:
-        return PKS_NONSTANDARD
+    case s.IsTypePubKey():      return PKS_PUBKEY
+    case s.IsTypePubKeyHash():  return PKS_PUBKEYHASH
+    case s.IsTypeScriptHash():  return PKS_SCRIPTHASH
+    case s.IsTypeNullData():    return PKS_NULLDATA
+    case s.IsTypeMultiSig():    return PKS_MULTISIG
+    default:                    return PKS_NONSTANDARD
     }
 }
 

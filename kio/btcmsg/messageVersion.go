@@ -4,8 +4,8 @@ package btcmsg
 import (
     "bytes"
     "time"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
 )
 
 // Bitcoin protocol message: "version"
@@ -24,13 +24,13 @@ type Message_version struct {
 func NewLocalVersionMsg(addrRecv *PeerInfo) *Message_version {
     addrFrom := NewPeerInfo()// We don't accept incoming connections
     return &Message_version{
-        cst.ProtocolVersion,
-        cst.NodeServices,
+        kaiju.ProtocolVersion,
+        kaiju.NodeServices,
         time.Now().Unix(),
         addrRecv,
         addrFrom,
-        cst.NounceInVersionMsg,
-        klib.VarString(cst.UserAgent),
+        kaiju.NounceInVersionMsg,
+        klib.VarString(kaiju.UserAgent),
         1,
         0,
     }

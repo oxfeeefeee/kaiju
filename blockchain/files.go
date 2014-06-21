@@ -4,7 +4,7 @@ package blockchain
 import (
     "os"
     "path/filepath"
-    "github.com/oxfeeefeee/kaiju/config"
+    "github.com/oxfeeefeee/kaiju"
     )
 
 const headersFileName = "headers.dat"
@@ -23,8 +23,8 @@ func InitFiles() error {
     if files != nil {
         return nil
     }
-    cfg := config.GetConfig()
-    path := filepath.Join(config.GetConfigFileDir(), cfg.DataDir)
+    cfg := kaiju.GetConfig()
+    path := filepath.Join(kaiju.GetConfigFileDir(), cfg.DataDir)
     err := os.MkdirAll(path, os.ModePerm)
     if err != nil {
         return err

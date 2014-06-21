@@ -6,7 +6,7 @@ import (
     "bytes"
     "math"
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju/log"
+    "github.com/oxfeeefeee/kaiju"
 )
 
 // slotScanFunc's are called by KDB.slotScan, to operate on slot data
@@ -251,6 +251,6 @@ func (db *KDB) slotCount() int64 {
 }
 
 // Handy function
-func logger() *log.Logger {
-    return log.KDBLogger
+func logger() *kaiju.Logger {
+    return kaiju.KDBLogger
 }

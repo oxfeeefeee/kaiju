@@ -3,11 +3,11 @@ package blockchain
 import (
     "testing"
     "fmt"
-    "github.com/oxfeeefeee/kaiju/config"
+    "github.com/oxfeeefeee/kaiju"
 )
 
 func TestFiles(t *testing.T) {
-    err := config.ReadJsonConfigFile()
+    err := kaiju.ReadJsonConfigFile()
     if err != nil {
         t.Errorf(fmt.Sprintf("Failed to read config file: %s", err))
     }
@@ -17,12 +17,12 @@ func TestFiles(t *testing.T) {
 }
 
 func TestGenesisHeader(t *testing.T) {
-    h := chain()[0]
+    h := Chain().headers[0]
     s := h.Hash().String()
     logger().Debugf("genesis hash %s", s)
     if s != "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f" {
         t.Errorf("Invalid genesis hash")
     }
 
-    logger().Debugf("Locator %s", GetLocator()[0]) 
+    logger().Debugf("Locator %s", Chain().GetLocator()[0]) 
 }

@@ -5,7 +5,7 @@ import (
     "net"
     "time"
     "math"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
 )
 
@@ -20,7 +20,7 @@ type CC struct {
 func newCC(im *idManager) *CC {
     return &CC{
         newAddrPool(im), 
-        make(chan struct{}, cst.MaxDialConcurrency), 
+        make(chan struct{}, kaiju.MaxDialConcurrency), 
         im,
     }
 }
@@ -112,7 +112,7 @@ func (cc *CC) doConnect(peerMonitors []Monitor) {
 func dialAddr(a *btcmsg.PeerInfo) <-chan net.Conn {
     cchan := make(chan net.Conn)
     go func () {
-        conn, _ := net.DialTimeout("tcp", a.ToTCPAddr().String(), cst.DialTimeout * time.Millisecond)
+        conn, _ := net.DialTimeout("tcp", a.ToTCPAddr().String(), kaiju.DialTimeout * time.Millisecond)
         cchan <- conn
     }()
     return cchan

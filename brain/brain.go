@@ -5,7 +5,7 @@
 package brain 
 
 import (
-    "github.com/oxfeeefeee/kaiju/log"
+    "github.com/oxfeeefeee/kaiju"
 )
 
 func Start() {
@@ -18,6 +18,6 @@ func Start() {
 }
 
 // Handy function
-func logger() *log.Logger {
-    return log.BrainLogger
+func logger() *kaiju.Logger {
+    return kaiju.BrainLogger
 }

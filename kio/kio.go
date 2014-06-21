@@ -8,9 +8,7 @@ package kio
 
 import (
     "time"
-    "github.com/oxfeeefeee/kaiju/config"
-    "github.com/oxfeeefeee/kaiju/log"
-    "github.com/oxfeeefeee/kaiju/catma/cst"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
 )
 
@@ -38,9 +36,9 @@ func Start(count int) <-chan struct{} {
     p := newPool(idm)
     cc := newCC(idm)
     instance = &KIO{p, cc, idm}
-    seeds := config.GetConfig().SeedPeers
+    seeds := kaiju.GetConfig().SeedPeers
     for _, ip := range seeds {
-        instance.cc.addSeedAddr(ip, cst.ListenPort)
+        instance.cc.addSeedAddr(ip, kaiju.ListenPort)
     }
     instance.cc.start([]Monitor{instance.pool, instance.cc})
     return p.waitPeers(count)
@@ -121,8 +119,8 @@ func PeerPool() *Pool {
 }
 
 // Handy function
-func logger() *log.Logger {
-    return log.KioLogger
+func logger() *kaiju.Logger {
+    return kaiju.KioLogger
 }
 
 

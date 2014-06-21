@@ -1,11 +1,10 @@
-package config
+package kaiju
 
 import (
     "os"
     "errors"
     "path/filepath"
     "encoding/json"
-    "github.com/oxfeeefeee/kaiju/log"
 )
 
 const configFileName = "config.json"
@@ -17,6 +16,7 @@ type Config struct {
 }
 
 var cfg             *Config
+
 var configFileDir   string
 
 func GetConfig() *Config {
@@ -38,7 +38,7 @@ func ReadJsonConfigFile() error {
     // Print working directory
     wd, wderr := os.Getwd()
     if wderr == nil {
-        log.MainLogger().Printf("Working directory: %s", wd)
+        MainLogger().Printf("Working directory: %s", wd)
     } else {
         return wderr
     }
