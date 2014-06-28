@@ -1,11 +1,14 @@
 package script
 
 import (
-    "errors"
     "encoding/binary"
     "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
     )
+
+type scriptContext interface {
+    HashToSign(subScript []byte, hashType uint32) (*klib.Hash256, error)
+}
 
 type Script []byte
 
@@ -51,7 +54,7 @@ func (s *Script) AppendPushInt(v int64) {
 
 func (s Script) getOpcode(p int) (op Opcode, operand []byte, next int, err error) {
     if p >= len(s) {
-        err = errors.New("Script.getOpcode: End of script")
+        err = errEOS
         return
     }
     op = Opcode(s[p])
@@ -63,28 +66,28 @@ func (s Script) getOpcode(p int) (op Opcode, operand []byte, next int, err error
             size = int(op)
         case op == OP_PUSHDATA1:
             if next >= len(s) - 1 {
-                err = errors.New("Script.getOpcode: Data size not found after OP_PUSHDATA1")
+                err = errDataNotFoundToPush
                 return
             }
             size = int(op)
             next += 1
         case op == OP_PUSHDATA2:
             if next >= len(s) - 2 {
-                err = errors.New("Script.getOpcode: Data size not found after OP_PUSHDATA2")
+                err = errDataNotFoundToPush
                 return
             }
             size = int(binary.LittleEndian.Uint16(s[next:next+2]))
             next += 2
         case op == OP_PUSHDATA4:
             if next >= len(s) - 4 {
-                err = errors.New("Script.getOpcode: Data size not found after OP_PUSHDATA4")
+                err = errDataNotFoundToPush
                 return
             }
             size = int(binary.LittleEndian.Uint32(s[next:next+4]))
             next += 4  
         }
         if next >= len(s) - size {
-            err = errors.New("Script.getOpcode: Data not found after OP_PUSHDATA")
+            err = errDataNotFoundToPush
             return
         }
         operand = s[next:next+size]

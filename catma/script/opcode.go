@@ -223,169 +223,147 @@ const (
     OP_INVALIDOPCODE Opcode = 0xff
 )
 
-var disabledOpcodes = []Opcode{
-    OP_CAT,
-    OP_SUBSTR,
-    OP_LEFT,
-    OP_RIGHT,
-    OP_INVERT,
-    OP_AND,
-    OP_OR,
-    OP_XOR,
-    OP_2MUL,
-    OP_2DIV,
-    OP_MUL,
-    OP_DIV,
-    OP_MOD,
-    OP_LSHIFT,
-    OP_RSHIFT}
-
 type Opcode byte
 
 // The same as Satoshi client
 func (c Opcode) String() string {
-    if c >= OP_PUSHDATA00 && c <= OP_PUSHDATA4b {
-        return fmt.Sprintf("OP_PUSHDATA%02x", byte(c))
-    }
-    switch c {
-    case OP_PUSHDATA1              : return "OP_PUSHDATA1";
-    case OP_PUSHDATA2              : return "OP_PUSHDATA2";
-    case OP_PUSHDATA4              : return "OP_PUSHDATA4";
-    case OP_1NEGATE                : return "-1";
-    case OP_RESERVED               : return "OP_RESERVED";
-    case OP_1                      : return "1";
-    case OP_2                      : return "2";
-    case OP_3                      : return "3";
-    case OP_4                      : return "4";
-    case OP_5                      : return "5";
-    case OP_6                      : return "6";
-    case OP_7                      : return "7";
-    case OP_8                      : return "8";
-    case OP_9                      : return "9";
-    case OP_10                     : return "10";
-    case OP_11                     : return "11";
-    case OP_12                     : return "12";
-    case OP_13                     : return "13";
-    case OP_14                     : return "14";
-    case OP_15                     : return "15";
-    case OP_16                     : return "16";
-
-    // control
-    case OP_NOP                    : return "OP_NOP";
-    case OP_VER                    : return "OP_VER";
-    case OP_IF                     : return "OP_IF";
-    case OP_NOTIF                  : return "OP_NOTIF";
-    case OP_VERIF                  : return "OP_VERIF";
-    case OP_VERNOTIF               : return "OP_VERNOTIF";
-    case OP_ELSE                   : return "OP_ELSE";
-    case OP_ENDIF                  : return "OP_ENDIF";
-    case OP_VERIFY                 : return "OP_VERIFY";
-    case OP_RETURN                 : return "OP_RETURN";
-
-    // stack ops
-    case OP_TOALTSTACK             : return "OP_TOALTSTACK";
-    case OP_FROMALTSTACK           : return "OP_FROMALTSTACK";
-    case OP_2DROP                  : return "OP_2DROP";
-    case OP_2DUP                   : return "OP_2DUP";
-    case OP_3DUP                   : return "OP_3DUP";
-    case OP_2OVER                  : return "OP_2OVER";
-    case OP_2ROT                   : return "OP_2ROT";
-    case OP_2SWAP                  : return "OP_2SWAP";
-    case OP_IFDUP                  : return "OP_IFDUP";
-    case OP_DEPTH                  : return "OP_DEPTH";
-    case OP_DROP                   : return "OP_DROP";
-    case OP_DUP                    : return "OP_DUP";
-    case OP_NIP                    : return "OP_NIP";
-    case OP_OVER                   : return "OP_OVER";
-    case OP_PICK                   : return "OP_PICK";
-    case OP_ROLL                   : return "OP_ROLL";
-    case OP_ROT                    : return "OP_ROT";
-    case OP_SWAP                   : return "OP_SWAP";
-    case OP_TUCK                   : return "OP_TUCK";
-
-    // splice ops
-    case OP_CAT                    : return "OP_CAT";
-    case OP_SUBSTR                 : return "OP_SUBSTR";
-    case OP_LEFT                   : return "OP_LEFT";
-    case OP_RIGHT                  : return "OP_RIGHT";
-    case OP_SIZE                   : return "OP_SIZE";
-
-    // bit logic
-    case OP_INVERT                 : return "OP_INVERT";
-    case OP_AND                    : return "OP_AND";
-    case OP_OR                     : return "OP_OR";
-    case OP_XOR                    : return "OP_XOR";
-    case OP_EQUAL                  : return "OP_EQUAL";
-    case OP_EQUALVERIFY            : return "OP_EQUALVERIFY";
-    case OP_RESERVED1              : return "OP_RESERVED1";
-    case OP_RESERVED2              : return "OP_RESERVED2";
-
-    // numeric
-    case OP_1ADD                   : return "OP_1ADD";
-    case OP_1SUB                   : return "OP_1SUB";
-    case OP_2MUL                   : return "OP_2MUL";
-    case OP_2DIV                   : return "OP_2DIV";
-    case OP_NEGATE                 : return "OP_NEGATE";
-    case OP_ABS                    : return "OP_ABS";
-    case OP_NOT                    : return "OP_NOT";
-    case OP_0NOTEQUAL              : return "OP_0NOTEQUAL";
-    case OP_ADD                    : return "OP_ADD";
-    case OP_SUB                    : return "OP_SUB";
-    case OP_MUL                    : return "OP_MUL";
-    case OP_DIV                    : return "OP_DIV";
-    case OP_MOD                    : return "OP_MOD";
-    case OP_LSHIFT                 : return "OP_LSHIFT";
-    case OP_RSHIFT                 : return "OP_RSHIFT";
-    case OP_BOOLAND                : return "OP_BOOLAND";
-    case OP_BOOLOR                 : return "OP_BOOLOR";
-    case OP_NUMEQUAL               : return "OP_NUMEQUAL";
-    case OP_NUMEQUALVERIFY         : return "OP_NUMEQUALVERIFY";
-    case OP_NUMNOTEQUAL            : return "OP_NUMNOTEQUAL";
-    case OP_LESSTHAN               : return "OP_LESSTHAN";
-    case OP_GREATERTHAN            : return "OP_GREATERTHAN";
-    case OP_LESSTHANOREQUAL        : return "OP_LESSTHANOREQUAL";
-    case OP_GREATERTHANOREQUAL     : return "OP_GREATERTHANOREQUAL";
-    case OP_MIN                    : return "OP_MIN";
-    case OP_MAX                    : return "OP_MAX";
-    case OP_WITHIN                 : return "OP_WITHIN";
-
-    // crypto
-    case OP_RIPEMD160              : return "OP_RIPEMD160";
-    case OP_SHA1                   : return "OP_SHA1";
-    case OP_SHA256                 : return "OP_SHA256";
-    case OP_HASH160                : return "OP_HASH160";
-    case OP_HASH256                : return "OP_HASH256";
-    case OP_CODESEPARATOR          : return "OP_CODESEPARATOR";
-    case OP_CHECKSIG               : return "OP_CHECKSIG";
-    case OP_CHECKSIGVERIFY         : return "OP_CHECKSIGVERIFY";
-    case OP_CHECKMULTISIG          : return "OP_CHECKMULTISIG";
-    case OP_CHECKMULTISIGVERIFY    : return "OP_CHECKMULTISIGVERIFY";
-
-    // expanson
-    case OP_NOP1                   : return "OP_NOP1";
-    case OP_NOP2                   : return "OP_NOP2";
-    case OP_NOP3                   : return "OP_NOP3";
-    case OP_NOP4                   : return "OP_NOP4";
-    case OP_NOP5                   : return "OP_NOP5";
-    case OP_NOP6                   : return "OP_NOP6";
-    case OP_NOP7                   : return "OP_NOP7";
-    case OP_NOP8                   : return "OP_NOP8";
-    case OP_NOP9                   : return "OP_NOP9";
-    case OP_NOP10                  : return "OP_NOP10";
-
-    case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
-    }
-    return "OP_UNKNOWN"   
+    str, _ := c.attr()
+    return str
 }
 
-// Returns if Opcode is disabled
-func (c Opcode) disabled() bool {
-    for _, d := range disabledOpcodes {
-        if c == d {
-            return true
-        }
+func (c Opcode) attr() (string, execFunc) {
+    if c >= OP_PUSHDATA00 && c <= OP_PUSHDATA4b {
+        return fmt.Sprintf("OP_PUSHDATA%02x", byte(c)), execPushData
     }
-    return false
+    switch c {
+    case OP_PUSHDATA1           : return "OP_PUSHDATA1",            execPushData
+    case OP_PUSHDATA2           : return "OP_PUSHDATA2",            execPushData
+    case OP_PUSHDATA4           : return "OP_PUSHDATA4",            execPushData
+    case OP_1NEGATE             : return "-1",                      execPushNumber
+    case OP_RESERVED            : return "OP_RESERVED",             execInvalid
+    case OP_1                   : return "1",                       execPushNumber
+    case OP_2                   : return "2",                       execPushNumber
+    case OP_3                   : return "3",                       execPushNumber
+    case OP_4                   : return "4",                       execPushNumber
+    case OP_5                   : return "5",                       execPushNumber
+    case OP_6                   : return "6",                       execPushNumber
+    case OP_7                   : return "7",                       execPushNumber
+    case OP_8                   : return "8",                       execPushNumber
+    case OP_9                   : return "9",                       execPushNumber
+    case OP_10                  : return "10",                      execPushNumber
+    case OP_11                  : return "11",                      execPushNumber
+    case OP_12                  : return "12",                      execPushNumber
+    case OP_13                  : return "13",                      execPushNumber
+    case OP_14                  : return "14",                      execPushNumber
+    case OP_15                  : return "15",                      execPushNumber
+    case OP_16                  : return "16",                      execPushNumber
+
+    // control
+    case OP_NOP                 : return "OP_NOP",                  execNop
+    case OP_VER                 : return "OP_VER",                  execInvalid
+    case OP_IF                  : return "OP_IF",                   execBranching
+    case OP_NOTIF               : return "OP_NOTIF",                execBranching
+    case OP_VERIF               : return "OP_VERIF",                execInvalid
+    case OP_VERNOTIF            : return "OP_VERNOTIF",             execInvalid
+    case OP_ELSE                : return "OP_ELSE",                 execBranching
+    case OP_ENDIF               : return "OP_ENDIF",                execBranching
+    case OP_VERIFY              : return "OP_VERIFY",               execControl
+    case OP_RETURN              : return "OP_RETURN",               execControl
+
+    // stack ops
+    case OP_TOALTSTACK          : return "OP_TOALTSTACK",           execStackOp
+    case OP_FROMALTSTACK        : return "OP_FROMALTSTACK",         execStackOp
+    case OP_2DROP               : return "OP_2DROP",                execStackOp
+    case OP_2DUP                : return "OP_2DUP",                 execStackOp
+    case OP_3DUP                : return "OP_3DUP",                 execStackOp
+    case OP_2OVER               : return "OP_2OVER",                execStackOp
+    case OP_2ROT                : return "OP_2ROT",                 execStackOp
+    case OP_2SWAP               : return "OP_2SWAP",                execStackOp
+    case OP_IFDUP               : return "OP_IFDUP",                execStackOp
+    case OP_DEPTH               : return "OP_DEPTH",                execStackOp
+    case OP_DROP                : return "OP_DROP",                 execStackOp
+    case OP_DUP                 : return "OP_DUP",                  execStackOp
+    case OP_NIP                 : return "OP_NIP",                  execStackOp
+    case OP_OVER                : return "OP_OVER",                 execStackOp
+    case OP_PICK                : return "OP_PICK",                 execStackOp
+    case OP_ROLL                : return "OP_ROLL",                 execStackOp
+    case OP_ROT                 : return "OP_ROT",                  execStackOp
+    case OP_SWAP                : return "OP_SWAP",                 execStackOp
+    case OP_TUCK                : return "OP_TUCK",                 execStackOp
+
+    // splice ops
+    case OP_CAT                 : return "OP_CAT",                  execInvalid
+    case OP_SUBSTR              : return "OP_SUBSTR",               execInvalid
+    case OP_LEFT                : return "OP_LEFT",                 execInvalid
+    case OP_RIGHT               : return "OP_RIGHT",                execInvalid
+    case OP_SIZE                : return "OP_SIZE",                 execSize
+
+    // bit logic
+    case OP_INVERT              : return "OP_INVERT",               execInvalid
+    case OP_AND                 : return "OP_AND",                  execInvalid
+    case OP_OR                  : return "OP_OR",                   execInvalid
+    case OP_XOR                 : return "OP_XOR",                  execInvalid
+    case OP_EQUAL               : return "OP_EQUAL",                execEqual
+    case OP_EQUALVERIFY         : return "OP_EQUALVERIFY",          execEqual
+    case OP_RESERVED1           : return "OP_RESERVED1",            execInvalid
+    case OP_RESERVED2           : return "OP_RESERVED2",            execInvalid
+
+    // numeric
+    case OP_1ADD                : return "OP_1ADD",                 execNumeric1
+    case OP_1SUB                : return "OP_1SUB",                 execNumeric1
+    case OP_2MUL                : return "OP_2MUL",                 execInvalid
+    case OP_2DIV                : return "OP_2DIV",                 execInvalid
+    case OP_NEGATE              : return "OP_NEGATE",               execNumeric1
+    case OP_ABS                 : return "OP_ABS",                  execNumeric1
+    case OP_NOT                 : return "OP_NOT",                  execNumeric1
+    case OP_0NOTEQUAL           : return "OP_0NOTEQUAL",            execNumeric1
+    case OP_ADD                 : return "OP_ADD",                  execNumeric2
+    case OP_SUB                 : return "OP_SUB",                  execNumeric2
+    case OP_MUL                 : return "OP_MUL",                  execInvalid
+    case OP_DIV                 : return "OP_DIV",                  execInvalid
+    case OP_MOD                 : return "OP_MOD",                  execInvalid
+    case OP_LSHIFT              : return "OP_LSHIFT",               execInvalid
+    case OP_RSHIFT              : return "OP_RSHIFT",               execInvalid
+    case OP_BOOLAND             : return "OP_BOOLAND",              execNumeric2
+    case OP_BOOLOR              : return "OP_BOOLOR",               execNumeric2
+    case OP_NUMEQUAL            : return "OP_NUMEQUAL",             execNumeric2
+    case OP_NUMEQUALVERIFY      : return "OP_NUMEQUALVERIFY",       execNumeric2
+    case OP_NUMNOTEQUAL         : return "OP_NUMNOTEQUAL",          execNumeric2
+    case OP_LESSTHAN            : return "OP_LESSTHAN",             execNumeric2
+    case OP_GREATERTHAN         : return "OP_GREATERTHAN",          execNumeric2
+    case OP_LESSTHANOREQUAL     : return "OP_LESSTHANOREQUAL",      execNumeric2
+    case OP_GREATERTHANOREQUAL  : return "OP_GREATERTHANOREQUAL",   execNumeric2
+    case OP_MIN                 : return "OP_MIN",                  execNumeric2
+    case OP_MAX                 : return "OP_MAX",                  execNumeric2
+    case OP_WITHIN              : return "OP_WITHIN",               execNumeric3
+
+    // crypto
+    case OP_RIPEMD160           : return "OP_RIPEMD160",            execCrypto
+    case OP_SHA1                : return "OP_SHA1",                 execCrypto
+    case OP_SHA256              : return "OP_SHA256",               execCrypto
+    case OP_HASH160             : return "OP_HASH160",              execCrypto
+    case OP_HASH256             : return "OP_HASH256",              execCrypto
+    case OP_CODESEPARATOR       : return "OP_CODESEPARATOR",        execSeparator
+    case OP_CHECKSIG            : return "OP_CHECKSIG",             execCheckSig
+    case OP_CHECKSIGVERIFY      : return "OP_CHECKSIGVERIFY",       execCheckSig
+    case OP_CHECKMULTISIG       : return "OP_CHECKMULTISIG",        execCheckMultiSig
+    case OP_CHECKMULTISIGVERIFY : return "OP_CHECKMULTISIGVERIFY",  execCheckMultiSig 
+
+    // expanson
+    case OP_NOP1                : return "OP_NOP1",                 execNop
+    case OP_NOP2                : return "OP_NOP2",                 execNop
+    case OP_NOP3                : return "OP_NOP3",                 execNop
+    case OP_NOP4                : return "OP_NOP4",                 execNop
+    case OP_NOP5                : return "OP_NOP5",                 execNop
+    case OP_NOP6                : return "OP_NOP6",                 execNop
+    case OP_NOP7                : return "OP_NOP7",                 execNop
+    case OP_NOP8                : return "OP_NOP8",                 execNop
+    case OP_NOP9                : return "OP_NOP9",                 execNop
+    case OP_NOP10               : return "OP_NOP10",                execNop
+
+    case OP_INVALIDOPCODE       : return "OP_INVALIDOPCODE",        nil
+    }
+    return "OP_UNKNOWN", nil
 }
 
 // Returns the number to be pushed for OP_PUSHDATA00, OP_1, OP_2 ...

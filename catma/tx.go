@@ -2,6 +2,7 @@ package catma
 
 import (
     "bytes"
+    "errors"
     "encoding/binary"
     "github.com/oxfeeefeee/kaiju/klib"
 )
@@ -67,9 +68,9 @@ func (t *Tx) Bytes() []byte {
 }
 
 // Returns the string to sign for an input of a TX, invalid index causes panic
-func (t *Tx) HashToSign(subScript []byte, ii int, hashType uint32) *klib.Hash256 {
+func (t *Tx) HashToSign(subScript []byte, ii int, hashType uint32) (*klib.Hash256, error) {
     if ii >= len(t.TxIns) {
-        panic("Tx.StringToSign invalid index")
+        return nil, errors.New("Tx.StringToSign invalid index")
     }
     anyoneCanPay := (hashType & SIGHASH_ANYONECANPAY) != 0
     htype := hashType & 0x1f
@@ -79,18 +80,18 @@ func (t *Tx) HashToSign(subScript []byte, ii int, hashType uint32) *klib.Hash256
     binary.Write(p, binary.LittleEndian, t.Version)
 
     // STEP1: inputs 
-    if (anyoneCanPay) != 0 {
+    if anyoneCanPay {
         // If SIGHASH_ANYONECANPAY is set, only current input is written, 
         // and subScipt is used as SigScript 
         p.Write(klib.VarUint(1).Bytes())                                // inputs count
         binary.Write(p, binary.LittleEndian, t.TxIns[ii].PreviousOutput)// PreviousOutput
         p.Write(((*klib.VarString)(&subScript)).Bytes())                // subScript
-        binary.Write(p, binary.LittleEndian, txin.Sequence)             // Sequence
+        binary.Write(p, binary.LittleEndian, t.TxIns[ii].Sequence)             // Sequence
     } else {
         // Else write all the inputs with modifications
         p.Write(klib.VarUint(len(t.TxIns)).Bytes())
-        binary.Write(p, binary.LittleEndian, txin.PreviousOutput)
         for i, txin := range t.TxIns {
+            binary.Write(p, binary.LittleEndian, txin.PreviousOutput)
             if i == ii { // If this is current input, write subScript
                 p.Write(((*klib.VarString)(&subScript)).Bytes())
             } else { // Else write an empty VarString
@@ -114,7 +115,7 @@ func (t *Tx) HashToSign(subScript []byte, ii int, hashType uint32) *klib.Hash256
         if ii >= len(t.TxOuts) {
             // This is actually allowed due to a bug in Satoshi client, should do this:
             // panic("Tx.StringToSign invalid index with type SIGHASH_SINGLE")
-            return new(klib.Hash256).SetUint64(1)
+            return new(klib.Hash256).SetUint64(1), nil
         }
         p.Write(klib.VarUint(ii + 1).Bytes()) // output count
         for i:=0; i < ii; i++ { // All outputs except the last one are written as blank
@@ -131,19 +132,21 @@ func (t *Tx) HashToSign(subScript []byte, ii int, hashType uint32) *klib.Hash256
             p.Write(((*klib.VarString)(&txout.PKScript)).Bytes())
         }
     default:
-        panic("Tx.StringToSign invalid hash type")
+        return nil, errors.New("Tx.StringToSign invalid hash type")
     }
 
     // STEP4: LockTime and HashType
     binary.Write(p, binary.LittleEndian, t.LockTime)
     binary.Write(p, binary.LittleEndian, hashType)
-    return klib.Sha256Sha256(p.Bytes())
+    return klib.Sha256Sha256(p.Bytes()), nil
 }
 
+type InputEntry struct {
+    tx              *Tx
+    index           int
+}
 
-
-
-
-
-
-
+// Returns the string to sign for an input of a TX, invalid index causes panic
+func (e *InputEntry) HashToSign(subScript []byte, hashType uint32) (*klib.Hash256, error) {
+    return e.tx.HashToSign(subScript, e.index, hashType)
+}
