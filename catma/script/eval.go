@@ -25,29 +25,34 @@ const (
 
 // Context used by execXXXX functions
 type execContext struct {
-    stack       *stack      // Script running main stack
-    altStack    stack       // Alt stack
-    bStack      boolStack   // Branching stack
+    stack       *stack          // Script running main stack
+    altStack    stack           // Alt stack
+    bStack      boolStack       // Branching stack
+    separator   int             // Hash starts after the code separator
+    pc          int             // Next pc
+    opCount     int             // Opcode count
+    script      Script
     sctx        scriptContext
-    flags       byte
+    flags       evalFlag
 }
 
 type execFunc func(ctx *execContext, op Opcode, operand []byte) error
 
-func (s *stack) eval(script Script, c scriptContext, flags byte) error {
+func (s *stack) eval(script Script, c scriptContext, flags evalFlag) error {
     pc := 0
-    count := 0 // Opcode count 
-    ctx := &execContext{s, make([]stackItem, 0), make([]bool, 0), c, flags}
+    ctx := &execContext{s, make([]stackItem, 0), make([]bool, 0),
+        0, 0, 0, script, c, flags}
     for pc < len(script) {
         op, operand, next, err := script.getOpcode(pc)
         pc = next
+        ctx.pc = next
         if err != nil {
             return err
         }
 
         if op >= OP_NOP {
-            count++
-            if count > numbers.MaxOpcodeCount {
+            ctx.opCount++
+            if ctx.opCount > numbers.MaxOpcodeCount {
                 return errOpcodeCount
             }
         }

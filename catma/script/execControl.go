@@ -15,8 +15,6 @@ func execControl(ctx *execContext, op Opcode, _ []byte) error {
         }
     case OP_RETURN:
         return errReturned
-    default:
-        panic("Unknown opcode!") // Should not happen
     }
     return nil
 }
@@ -44,9 +42,7 @@ func execBranching(ctx *execContext, op Opcode, _ []byte) error {
         if ctx.bStack.empty() {
             return errIfElseMismatch
         }
-        ctx.bStack.pop()
-    default:
-        panic("Unknown opcode!") // Should not happen           
+        ctx.bStack.pop()        
     }
     return nil
 } 

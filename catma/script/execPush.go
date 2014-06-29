@@ -16,7 +16,6 @@ func execPushData(ctx *execContext, _ Opcode, operand []byte) error {
 // ...
 // OP_16
 func execPushNumber(ctx *execContext, op Opcode, _ []byte) error {
-    num := scriptNum(int(op) - int(OP_1) + 1)
-    ctx.stack.push(num.toStackItem())
+    ctx.stack.push(intToStackItem(int(op) - int(OP_1) + 1))
     return nil
 }

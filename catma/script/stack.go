@@ -4,13 +4,19 @@ import (
     "github.com/oxfeeefeee/kaiju/klib"
     )
 
-type scriptNum klib.ScriptInt 
+type stackItem []byte
 
-func (sn *scriptNum) toStackItem() stackItem {
-    return (*klib.ScriptInt)(sn).Bytes()
+func intToStackItem(i int) stackItem {
+    return klib.ScriptInt(i).Bytes()
 }
 
-type stackItem []byte
+func boolToStackItem(b bool) stackItem {
+    if b {
+        return []byte{1}
+    } else {
+        return []byte{}
+    }
+}
 
 func (si stackItem) toBool() bool {
     for i, v := range si {
@@ -39,8 +45,8 @@ func (s *stack) empty() bool {
     return len(*s) == 0
 }
 
-func (s stack) top() stackItem {
-    return s[len(s) - 1]
+func (s stack) top(i int) stackItem {
+    return s[len(s) + i]
 }
 
 func (s *stack) pop() stackItem {

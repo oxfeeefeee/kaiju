@@ -7,6 +7,16 @@ const scriptIntMaxSize = 4
 
 type ScriptInt int64
 
+func ToScriptInt(p []byte) ScriptInt {
+    var i ScriptInt
+    i.SetBytes(p)
+    return i
+}
+
+func ScriptIntOverflow(p []byte) bool {
+    return len(p) > scriptIntMaxSize
+}
+
 func (i ScriptInt) Bytes() []byte {
     if i == 0 {
         return []byte{} 
@@ -35,12 +45,15 @@ func (i ScriptInt) Bytes() []byte {
     return p
 }
 
-func (i *ScriptInt) SetBytes(p []byte) error {
+// Check overflow before call this, otherwise it could panic
+func (i *ScriptInt) SetBytes(p []byte) {
     if len(p) == 0 {
         *i = 0
-        return nil
+        return
     } 
-
+    if len(p) > scriptIntMaxSize {
+        panic("ScriptInt.SetBytes overflow")
+    }
     var val int64
     for j := 0; j < len(p); j++ {
         val |= int64(p[j]) << uint(j * 8)
@@ -50,5 +63,4 @@ func (i *ScriptInt) SetBytes(p []byte) error {
         val = -(val & ^(0x80 << uint((len(p) - 1) * 8)))
     }
     *i = ScriptInt(val)
-    return nil
 }

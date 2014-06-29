@@ -335,14 +335,14 @@ func (c Opcode) attr() (string, execFunc) {
     case OP_GREATERTHANOREQUAL  : return "OP_GREATERTHANOREQUAL",   execNumeric2
     case OP_MIN                 : return "OP_MIN",                  execNumeric2
     case OP_MAX                 : return "OP_MAX",                  execNumeric2
-    case OP_WITHIN              : return "OP_WITHIN",               execNumeric3
+    case OP_WITHIN              : return "OP_WITHIN",               execWithin
 
     // crypto
-    case OP_RIPEMD160           : return "OP_RIPEMD160",            execCrypto
-    case OP_SHA1                : return "OP_SHA1",                 execCrypto
-    case OP_SHA256              : return "OP_SHA256",               execCrypto
-    case OP_HASH160             : return "OP_HASH160",              execCrypto
-    case OP_HASH256             : return "OP_HASH256",              execCrypto
+    case OP_RIPEMD160           : return "OP_RIPEMD160",            execRipemd160
+    case OP_SHA1                : return "OP_SHA1",                 execSha1
+    case OP_SHA256              : return "OP_SHA256",               execSha256
+    case OP_HASH160             : return "OP_HASH160",              execHash160
+    case OP_HASH256             : return "OP_HASH256",              execHash256
     case OP_CODESEPARATOR       : return "OP_CODESEPARATOR",        execSeparator
     case OP_CHECKSIG            : return "OP_CHECKSIG",             execCheckSig
     case OP_CHECKSIGVERIFY      : return "OP_CHECKSIGVERIFY",       execCheckSig

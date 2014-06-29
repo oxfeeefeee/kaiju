@@ -8,6 +8,8 @@ import (
 // Script erros are listed here to avoid errors.New calls and to 
 // make it easier to manage
 
+var errScriptIntOverflow = errors.New("ScriptInt.SetBytes: slice length larger than Maximum")
+
 var errEOS = errors.New("Script.getOpcode: End of script")
 
 var errDataNotFoundToPush = errors.New("Script.getOpcode: Data size not found after OP_PUSHDATAX")
@@ -22,4 +24,14 @@ var errIfElseMismatch = errors.New("eval: OP_IF / OP_ELSE / OP_ENDIF mismatch")
 
 var errVerifyFailed = errors.New("eval: OP_VERIFY failed")
 
+var errEqualVerifyFailed = errors.New("eval: OP_EQUALVERIFY failed")
+
 var errReturned = errors.New("eval: OP_RETURN")
+
+var errIndexOutOfRange = errors.New("eval: OP_PICK/OP_ROLL index out of range")
+
+var errKeySigCountOutOfRange = errors.New("eval: MultiSig key/sig index out of range")
+
+var errDummyArgNotNull = errors.New("CHECKMULTISIG dummy argument not null")
+
+var errSigVerify = errors.New("Signature verification failed")

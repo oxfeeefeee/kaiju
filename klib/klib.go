@@ -9,14 +9,9 @@ import (
     )
 
 func Sha256Sha256(p []byte) *Hash256 {
-    h := new(Hash256)
-    sha := sha256.New()
-    sha.Write(p)
-    copy(h[:], sha.Sum(nil)[:])
-    sha.Reset()
-    sha.Write(h[:])
-    copy(h[:], sha.Sum(nil)[:])
-    return h
+    h := sha256.Sum256(p)
+    hash := Hash256(sha256.Sum256(h[:]))
+    return &hash
 }
 
 func UInt16ToBytes(i uint16) []byte {
