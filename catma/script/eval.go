@@ -7,7 +7,7 @@ import (
 
 var fnTable []execFunc
 
-type evalFlag byte
+type evalFlag uint32
 
 // The value here is different from SCRIPT_VERIFY_XXXX in Satoshi client
 // they put SCRIPT_VERIFY_NOCACHE here, which is confusing because
@@ -18,6 +18,7 @@ const (
     // enforce strict conformance to DER and SEC2 for signatures and pubkeys
     evalFlag_STRICTENC          
     // enforce low S values (<n/2) in signatures (depends on STRICTENC)
+    // TODO: not implemented yet
     evalFlag_LOW_S              
     // verify dummy stack item consumed by CHECKMULTISIG is of zero-length
     evalFlag_NULLDUMMY          

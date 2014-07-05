@@ -8,8 +8,6 @@ import (
     "github.com/oxfeeefeee/kaiju/catma/numbers"
     )
 
-// TODO: IsCanonical
-
 // OP_CHECKSIG
 // OP_CHECKSIGVERIFY
 func execCheckSig(ctx *execContext, op Opcode, _ []byte) error {
@@ -24,7 +22,7 @@ func execCheckSig(ctx *execContext, op Opcode, _ []byte) error {
     if err != nil {
         return err
     }
-    err = verifySig(ctx.sctx, pk, sig, subScript)
+    err = checkKeySig(ctx.sctx, pk, sig, subScript, ctx.flags)
     if op == OP_CHECKSIGVERIFY {
         if err != nil {
             return errSigVerify
@@ -84,7 +82,7 @@ func execCheckMultiSig(ctx *execContext, op Opcode, _ []byte) error {
     for success && (sCount > 0) {
         pk := ctx.stack.top(-iKey)
         sig := ctx.stack.top(-iSig)
-        err := verifySig(ctx.sctx, pk, sig, subScript)
+        err := checkKeySig(ctx.sctx, pk, sig, subScript, ctx.flags)
         if err == nil {
             iSig++
             sCount--
@@ -143,6 +141,23 @@ func removeSig(subScript Script, sig []byte) (Script, error) {
     return subScript, nil
 }
 
+func checkKeySig(c scriptContext, pk []byte, sig []byte, subScript Script, flags evalFlag) error {
+    if (flags & evalFlag_STRICTENC) != 0 {
+        if (flags & evalFlag_LOW_S) != 0 {
+            panic("evalFlag_LOW_S not implemented")
+        }
+        err := canonicalPK(pk)
+        if err != nil {
+            return err
+        }
+        err = canonicalSig(sig)
+        if err != nil {
+            return err
+        }
+    }
+    return verifySig(c, pk, sig, subScript)
+}
+
 // See https://en.bitcoin.it/wiki/OP_CHECKSIG
 func verifySig(c scriptContext, pk []byte, sig []byte, subScript Script) error {
     // STEP1: Remove OP_CODESEPARATOR's from subScript
@@ -181,3 +196,79 @@ func verifySig(c scriptContext, pk []byte, sig []byte, subScript Script) error {
     return nil
 }
 
+func canonicalPK(pk []byte) error {
+    l := len(pk)
+    if l < 33 {
+        return errPKNonCanonical
+    }
+
+    switch pk[0] {
+    case 0x04:
+        if l != 65 {
+            return errPKNonCanonical
+        }
+    case 0x02, 0x03:
+        if l != 33 {
+            return errPKNonCanonical
+        }
+    default:
+        return errPKNonCanonical
+    }
+    return nil
+}
+
+func canonicalSig(sig []byte) error {
+    l := len(sig)
+    if l < 9 || l > 73 {
+        return errSigNonCanonical
+    }
+    hashType := sig[l-1] & 0x0f
+    if hashType < 1 || hashType > 3 { 
+        return errSigNonCanonical   // Unknown hashtype byte
+    }
+    if sig[0] != 0x30 { 
+        return errSigNonCanonical   // Wrong type
+    }
+    if int(sig[1]) != (l - 3) {
+        return errSigNonCanonical   // Wrong length marker
+    }
+    lenR := sig[3]
+    if (5 + int(lenR)) >= l {
+        return errSigNonCanonical   // S length misplaced
+    }
+    lenS := sig[5+lenR]
+    if int(lenR + lenS + 7) != l {
+        return errSigNonCanonical   // R+S length mismatch
+    }
+
+    rBegin := 4
+    r := sig[rBegin:]
+    if sig[rBegin-2] != 0x02 {
+        return errSigNonCanonical   //R value type mismatch
+    }
+    if lenR == 0 {
+        return errSigNonCanonical   //R length is zero
+    }
+    if (r[0] & 0x80) != 0 {
+        return errSigNonCanonical   //R length is negative
+    }
+    if (lenR > 1) && (r[0] == 0x00) && ((r[1] & 0x80) == 0) {
+        return errSigNonCanonical   // R value excessively padded
+    }
+
+    sBegin := 6 + lenR
+    s := sig[sBegin:]
+    if sig[sBegin-2] != 0x02 {
+        return errSigNonCanonical   //S value type mismatch
+    }
+    if lenS == 0 {
+        return errSigNonCanonical   //S length is zero
+    }
+    if (s[0] & 0x80) != 0 {
+        return errSigNonCanonical   //S length is negative
+    }
+    if (lenS > 1) && (s[0] == 0x00) && ((s[1] & 0x80) == 0) {
+        return errSigNonCanonical   //S value excessively padded
+    }
+    return nil
+}

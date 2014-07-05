@@ -11,6 +11,7 @@ const (
     SIGHASH_ALL             = 1
     SIGHASH_NONE            = 2
     SIGHASH_SINGLE          = 3
+    SIGHASH_ALLFLAGS        = 0x80
     SIGHASH_ANYONECANPAY    = 0x80 // This is not a type but a flag
 )
 
@@ -73,7 +74,7 @@ func (t *Tx) HashToSign(subScript []byte, ii int, hashType uint32) (*klib.Hash25
         return nil, errors.New("Tx.StringToSign invalid index")
     }
     anyoneCanPay := (hashType & SIGHASH_ANYONECANPAY) != 0
-    htype := hashType & 0x1f
+    htype := hashType & (^SIGHASH_ALLFLAGS)
     p := new(bytes.Buffer)
 
     // STEP0: version 

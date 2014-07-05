@@ -1,7 +1,6 @@
 package script
 
 import (
-    //"fmt"
     "errors"
     )
 
@@ -35,3 +34,7 @@ var errKeySigCountOutOfRange = errors.New("eval: MultiSig key/sig index out of r
 var errDummyArgNotNull = errors.New("CHECKMULTISIG dummy argument not null")
 
 var errSigVerify = errors.New("Signature verification failed")
+
+var errPKNonCanonical = errors.New("Non-canonical public key")
+
+var errSigNonCanonical = errors.New("Non-canonical signature")
