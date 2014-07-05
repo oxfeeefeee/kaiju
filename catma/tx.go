@@ -8,11 +8,11 @@ import (
 )
 
 const (
-    SIGHASH_ALL             = 1
-    SIGHASH_NONE            = 2
-    SIGHASH_SINGLE          = 3
-    SIGHASH_ALLFLAGS        = 0x80
-    SIGHASH_ANYONECANPAY    = 0x80 // This is not a type but a flag
+    SIGHASH_ALL             uint32  = 1
+    SIGHASH_NONE            uint32  = 2
+    SIGHASH_SINGLE          uint32  = 3
+    SIGHASH_ANYONECANPAY    uint32  = 0x80 // This is not a type but a flag
+    SIGHASH_ALLFLAGS        uint32  = 0x80
 )
 
 type TxOut struct {

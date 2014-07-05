@@ -5,7 +5,7 @@
 // 3. [tx/block] Remote peer sends "tx"/"block" in response to "getdata"
 //
 // "getheaders" are responded with "headers"
-package brain 
+package node 
 
 import (
     "github.com/oxfeeefeee/kaiju/klib"

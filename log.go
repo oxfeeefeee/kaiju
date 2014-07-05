@@ -8,7 +8,7 @@ import (
     )
 
 var mainLogger, KioLogger, KioMsgLogger, KlibLogger *Logger
-var KDBLogger, BlockchainLogger, BrainLogger *Logger
+var KDBLogger, BlockchainLogger, NodeLogger *Logger
 var CatmaLogger, CatmaScriptLogger *Logger
 
 func init() {
@@ -17,7 +17,7 @@ func init() {
     KioMsgLogger = createLogger("kio.msg")
     KDBLogger = createLogger("kdb")
     BlockchainLogger = createLogger("kdb")
-    BrainLogger = createLogger("brain")
+    NodeLogger = createLogger("node")
     KlibLogger = createLogger("klib")
     CatmaLogger = createLogger("catma")
     CatmaScriptLogger = createLogger("catma.script")

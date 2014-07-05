@@ -8,7 +8,7 @@ import (
     "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/profiling"
     "github.com/oxfeeefeee/kaiju/kio"
-    "github.com/oxfeeefeee/kaiju/brain"
+    "github.com/oxfeeefeee/kaiju/node"
     "github.com/oxfeeefeee/kaiju/blockchain"
 )
 
@@ -42,8 +42,8 @@ func mainFunc() {
     kaiju.MainLogger().Printf("starting kio...")
     <- kio.Start(10)
     kaiju.MainLogger().Printf("kio initialized.")
-    brain.Start()
-    kaiju.MainLogger().Printf("brain started.")
+    node.Start()
+    kaiju.MainLogger().Printf("node started.")
 
     // Don't quit
     c := make(chan struct{})

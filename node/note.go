@@ -1,7 +1,7 @@
-// package "brain" is the brain of the node, it uses kio, kdb and blockchain to:
+// package "node" manages bitcoin node behavior, it uses kio, kdb and blockchain to:
 // - Download, process and save historical bitcoin block data
 // - Interact with other nodes in the bitcoin network to work as a full node
-package brain 
+package node 
 
 import (
     "github.com/oxfeeefeee/kaiju"
@@ -18,5 +18,5 @@ func Start() {
 
 // Handy function
 func logger() *kaiju.Logger {
-    return kaiju.BrainLogger
+    return kaiju.NodeLogger
 }
