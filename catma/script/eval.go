@@ -2,53 +2,49 @@
 package script
 
 import (
+    "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma/numbers"
     )
 
+type scriptContext interface {
+    HashToSign(subScript []byte, hashType byte) (*klib.Hash256, error)
+}
+
 var fnTable []execFunc
-
-type evalFlag uint32
-
-// The value here is different from SCRIPT_VERIFY_XXXX in Satoshi client
-// they put SCRIPT_VERIFY_NOCACHE here, which is confusing because
-// it has nothing to do with bitcoin protocal itself.
-const (
-    // evaluate P2SH (BIP16) subscripts
-    evalFlag_P2SH evalFlag = 1 << iota
-    // enforce strict conformance to DER and SEC2 for signatures and pubkeys
-    evalFlag_STRICTENC          
-    // enforce low S values (<n/2) in signatures (depends on STRICTENC)
-    // TODO: not implemented yet
-    evalFlag_LOW_S              
-    // verify dummy stack item consumed by CHECKMULTISIG is of zero-length
-    evalFlag_NULLDUMMY          
-)
 
 // Context used by execXXXX functions
 type execContext struct {
     stack       *stack          // Script running main stack
-    altStack    stack           // Alt stack
+    altStack    *stack          // Alt stack
     bStack      boolStack       // Branching stack
     separator   int             // Hash starts after the code separator
     pc          int             // Next pc
     opCount     int             // Opcode count
     script      Script
     sctx        scriptContext
-    flags       evalFlag
+    flags       EvalFlag
 }
 
 type execFunc func(ctx *execContext, op Opcode, operand []byte) error
 
-func (s *stack) eval(script Script, c scriptContext, flags evalFlag) error {
+func (s *stack) eval(script Script, c scriptContext, flags EvalFlag) error {
+    if len(script) > numbers.MaxScriptSize {
+        return errScriptSizeLimit
+    }
     pc := 0
-    ctx := &execContext{s, make([]stackItem, 0), make([]bool, 0),
+    ctx := &execContext{s, &stack{}, make([]bool, 0),
         0, 0, 0, script, c, flags}
     for pc < len(script) {
         op, operand, next, err := script.getOpcode(pc)
+        //logger().Debugf("op: %s %v\n", op, operand)
         pc = next
         ctx.pc = next
         if err != nil {
             return err
+        }
+
+        if len(operand) > numbers.MaxScriptElementSize {
+            return errOperandSizeLimit
         }
 
         if op >= OP_NOP {
@@ -58,15 +54,21 @@ func (s *stack) eval(script Script, c scriptContext, flags evalFlag) error {
             }
         }
 
-        if int(op) >= len(fnTable) {
-            return errInvalidOp
+        // Another Satoshi Bug: any other junk data can be included in script as long as not
+        // getting executed, but Disabled Opcodes make the script invalid no matter what.
+        if int(op) >= 0 && int(op) < len(fnTable) && fnTable[op] == nil {
+            return errDisabledOp
         }
 
-        alive := ctx.bStack.alive()   
-        if !alive && (op >= OP_IF && op <= OP_ENDIF) {
+        alive := ctx.bStack.alive()  
+        if !alive && !(op >= OP_IF && op <= OP_ENDIF) {
             // Skip the code if we are in non-execute branch and the op is not
             // OP_IF / OP_NOTIF / OP_ELSE / OP_ENDIF
             continue
+        }
+
+        if op < 0 || int(op) >= len(fnTable) {
+            return errInvalidOp
         }
 
         fn := fnTable[op]
@@ -74,6 +76,13 @@ func (s *stack) eval(script Script, c scriptContext, flags evalFlag) error {
         if err != nil {
             return err
         }
+
+        if ctx.stack.height() + ctx.altStack.height() > numbers.MaxScriptEvalStackSize {
+            return errStackSizeLimit
+        }
+    }
+    if !ctx.bStack.empty() {
+        return errIfElseMismatch
     }
     return nil
 }

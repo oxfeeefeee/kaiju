@@ -142,3 +142,15 @@ func (s Script) IsTypeNullData() bool {
         return err != nil && len(operand) <= maxOpReturnRelay &&  next == len(s)
     }
 }
+
+func (s Script) IsPushOnly() bool {
+    next := 0
+    for next < len(s){
+        op, _, np, err := s.getOpcode(next)
+        next = np
+        if err != nil || op > OP_16 {
+            return false
+        }
+    }
+    return true
+}

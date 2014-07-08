@@ -38,3 +38,17 @@ var errSigVerify = errors.New("Signature verification failed")
 var errPKNonCanonical = errors.New("Non-canonical public key")
 
 var errSigNonCanonical = errors.New("Non-canonical signature")
+
+var errEvalNotTrue = errors.New("Eval result is not true")
+
+var errP2SHSigNotPushOnly = errors.New("P2SH sigScript not push-only")
+
+var errEmptySig = errors.New("verifySig: empty signature")
+
+var errStackSizeLimit = errors.New("eval: stack size exceeded limit")
+
+var errOperandSizeLimit = errors.New("eval: size of opcode operand exceeded limit")
+
+var errScriptSizeLimit = errors.New("eval: size of script exceeded limit")
+
+var errDisabledOp = errors.New("eval: Disabled opcode in script")

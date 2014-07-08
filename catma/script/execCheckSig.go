@@ -16,8 +16,8 @@ func execCheckSig(ctx *execContext, op Opcode, _ []byte) error {
     }
     pk := ctx.stack.pop()
     sig := ctx.stack.pop()
-    subScript := make([]byte, 0, len(ctx.script) - ctx.pc)
-    copy(subScript, ctx.script[:ctx.separator])
+    subScript := make([]byte, len(ctx.script) - ctx.separator)
+    copy(subScript, ctx.script[ctx.separator:])
     subScript, err := removeSig(subScript, sig)
     if err != nil {
         return err
@@ -69,8 +69,8 @@ func execCheckMultiSig(ctx *execContext, op Opcode, _ []byte) error {
         return errStackItemMissing
     }
 
-    subScript := make([]byte, 0, len(ctx.script) - ctx.pc)
-    copy(subScript, ctx.script[:ctx.separator])
+    subScript := make([]byte, len(ctx.script) - ctx.separator)
+    copy(subScript, ctx.script[ctx.separator:])
     for k := 0; k < sCount; k++ {
         var err error
         subScript, err = removeSig(subScript, ctx.stack.top(-(iSig + k)))
@@ -91,7 +91,7 @@ func execCheckMultiSig(ctx *execContext, op Opcode, _ []byte) error {
         kCount--
         // If there are more signatures left than keys left,
         // then too many signatures have failed
-        if (sCount > kCount) {
+        if sCount > kCount {
             success = false
         }
     }
@@ -106,7 +106,7 @@ func execCheckMultiSig(ctx *execContext, op Opcode, _ []byte) error {
     }
     // Now we check dummy being null when required
     si := ctx.stack.pop()
-    if (ctx.flags & evalFlag_NULLDUMMY) != 0 && len(si) > 0 {
+    if (ctx.flags & EvalFlagNullDummy) != 0 && len(si) > 0 {
         return errDummyArgNotNull
     }
 
@@ -124,6 +124,7 @@ func execCheckMultiSig(ctx *execContext, op Opcode, _ []byte) error {
     return nil
 }
 
+/* This is how removeSig should work, unfortunately there is a Satoshi Bug to implement.
 func removeSig(subScript Script, sig []byte) (Script, error) {
     for current := 0; current < len(subScript); {
         _, operand, next, err := subScript.getOpcode(current)
@@ -140,11 +141,35 @@ func removeSig(subScript Script, sig []byte) (Script, error) {
     }
     return subScript, nil
 }
+*/
+// Satoshi didn't compare the sig content it self, instead, a Script is built
+// and then used to do "FindAndDelete", i.e. it compares both the sig and the 
+// OP_PUSHDATAX opcode.
+// We have to do the same here
+func removeSig(subScript Script, sig []byte) (Script, error) {
+    sigScript := Script{}
+    sigScript.AppendPushData(sig)
+    for current := 0; current < len(subScript); {
+        _, _, next, err := subScript.getOpcode(current)
+        if err != nil {
+            return nil, err
+        }
+        if bytes.Equal(subScript[current:next], sigScript) { 
+            // Remove [OP_PUSHDATAX-len-Sig]
+            subScript = append(subScript[:current], subScript[next:]...)
+            // Do not advance the cursor in this case
+        } else {
+            current = next
+        }
+    }
+    return subScript, nil
+}
 
-func checkKeySig(c scriptContext, pk []byte, sig []byte, subScript Script, flags evalFlag) error {
-    if (flags & evalFlag_STRICTENC) != 0 {
-        if (flags & evalFlag_LOW_S) != 0 {
-            panic("evalFlag_LOW_S not implemented")
+
+func checkKeySig(c scriptContext, pk []byte, sig []byte, subScript Script, flags EvalFlag) error {
+    if (flags & EvalFlagStrictEnc) != 0 {
+        if (flags & EvalFlagLowS) != 0 {
+            panic("EvalFlag_LOW_S not implemented")
         }
         err := canonicalPK(pk)
         if err != nil {
@@ -174,9 +199,11 @@ func verifySig(c scriptContext, pk []byte, sig []byte, subScript Script) error {
             current = next
         }
     }
-
     // STEP2: Get hash to sign from Context
-    hash, err := c.HashToSign(subScript, uint32(pk[len(pk) - 1]))
+    if len(sig) == 0 {
+        return errEmptySig
+    }
+    hash, err := c.HashToSign(subScript, sig[len(sig)-1])
     if err != nil {
         return err
     }
@@ -186,7 +213,8 @@ func verifySig(c scriptContext, pk []byte, sig []byte, subScript Script) error {
     if err != nil {
         return err
     }
-    r, s, err := klib.Sig(sig).GoSig()
+    // Remove the hashType from sig before verifying
+    r, s, err := klib.Sig(sig[:len(sig)-1]).GoSig()
     if err != nil {
         return err
     }

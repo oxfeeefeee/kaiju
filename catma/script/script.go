@@ -6,10 +6,6 @@ import (
     "github.com/oxfeeefeee/kaiju/klib"
     )
 
-type scriptContext interface {
-    HashToSign(subScript []byte, hashType uint32) (*klib.Hash256, error)
-}
-
 type Script []byte
 
 func NewScript() *Script {
@@ -65,28 +61,28 @@ func (s Script) getOpcode(p int) (op Opcode, operand []byte, next int, err error
         case op < OP_PUSHDATA1:
             size = int(op)
         case op == OP_PUSHDATA1:
-            if next >= len(s) - 1 {
+            if next >= len(s) {
                 err = errDataNotFoundToPush
                 return
             }
-            size = int(op)
+            size = int(s[next])
             next += 1
         case op == OP_PUSHDATA2:
-            if next >= len(s) - 2 {
+            if next >= len(s) - 1 {
                 err = errDataNotFoundToPush
                 return
             }
             size = int(binary.LittleEndian.Uint16(s[next:next+2]))
             next += 2
         case op == OP_PUSHDATA4:
-            if next >= len(s) - 4 {
+            if next >= len(s) - 3 {
                 err = errDataNotFoundToPush
                 return
             }
             size = int(binary.LittleEndian.Uint32(s[next:next+4]))
             next += 4  
         }
-        if next >= len(s) - size {
+        if next > len(s) - size {
             err = errDataNotFoundToPush
             return
         }
@@ -100,7 +96,3 @@ func (s Script) getOpcode(p int) (op Opcode, operand []byte, next int, err error
 func logger() *kaiju.Logger {
     return kaiju.CatmaScriptLogger
 }
-
-
-
-

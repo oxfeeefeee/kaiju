@@ -231,6 +231,8 @@ func (c Opcode) String() string {
     return str
 }
 
+// Disabled Opcodes make the script invalid no matter what, so we set the exec func as
+// nil to mark them
 func (c Opcode) attr() (string, execFunc) {
     if c >= OP_PUSHDATA00 && c <= OP_PUSHDATA4b {
         return fmt.Sprintf("OP_PUSHDATA%02x", byte(c)), execPushData
@@ -292,17 +294,17 @@ func (c Opcode) attr() (string, execFunc) {
     case OP_TUCK                : return "OP_TUCK",                 execStackOp
 
     // splice ops
-    case OP_CAT                 : return "OP_CAT",                  execInvalid
-    case OP_SUBSTR              : return "OP_SUBSTR",               execInvalid
-    case OP_LEFT                : return "OP_LEFT",                 execInvalid
-    case OP_RIGHT               : return "OP_RIGHT",                execInvalid
+    case OP_CAT                 : return "OP_CAT",                  nil
+    case OP_SUBSTR              : return "OP_SUBSTR",               nil
+    case OP_LEFT                : return "OP_LEFT",                 nil
+    case OP_RIGHT               : return "OP_RIGHT",                nil
     case OP_SIZE                : return "OP_SIZE",                 execSize
 
     // bit logic
-    case OP_INVERT              : return "OP_INVERT",               execInvalid
-    case OP_AND                 : return "OP_AND",                  execInvalid
-    case OP_OR                  : return "OP_OR",                   execInvalid
-    case OP_XOR                 : return "OP_XOR",                  execInvalid
+    case OP_INVERT              : return "OP_INVERT",               nil
+    case OP_AND                 : return "OP_AND",                  nil
+    case OP_OR                  : return "OP_OR",                   nil
+    case OP_XOR                 : return "OP_XOR",                  nil
     case OP_EQUAL               : return "OP_EQUAL",                execEqual
     case OP_EQUALVERIFY         : return "OP_EQUALVERIFY",          execEqual
     case OP_RESERVED1           : return "OP_RESERVED1",            execInvalid
@@ -311,19 +313,19 @@ func (c Opcode) attr() (string, execFunc) {
     // numeric
     case OP_1ADD                : return "OP_1ADD",                 execNumeric1
     case OP_1SUB                : return "OP_1SUB",                 execNumeric1
-    case OP_2MUL                : return "OP_2MUL",                 execInvalid
-    case OP_2DIV                : return "OP_2DIV",                 execInvalid
+    case OP_2MUL                : return "OP_2MUL",                 nil
+    case OP_2DIV                : return "OP_2DIV",                 nil
     case OP_NEGATE              : return "OP_NEGATE",               execNumeric1
     case OP_ABS                 : return "OP_ABS",                  execNumeric1
     case OP_NOT                 : return "OP_NOT",                  execNumeric1
     case OP_0NOTEQUAL           : return "OP_0NOTEQUAL",            execNumeric1
     case OP_ADD                 : return "OP_ADD",                  execNumeric2
     case OP_SUB                 : return "OP_SUB",                  execNumeric2
-    case OP_MUL                 : return "OP_MUL",                  execInvalid
-    case OP_DIV                 : return "OP_DIV",                  execInvalid
-    case OP_MOD                 : return "OP_MOD",                  execInvalid
-    case OP_LSHIFT              : return "OP_LSHIFT",               execInvalid
-    case OP_RSHIFT              : return "OP_RSHIFT",               execInvalid
+    case OP_MUL                 : return "OP_MUL",                  nil
+    case OP_DIV                 : return "OP_DIV",                  nil
+    case OP_MOD                 : return "OP_MOD",                  nil
+    case OP_LSHIFT              : return "OP_LSHIFT",               nil
+    case OP_RSHIFT              : return "OP_RSHIFT",               nil
     case OP_BOOLAND             : return "OP_BOOLAND",              execNumeric2
     case OP_BOOLOR              : return "OP_BOOLOR",               execNumeric2
     case OP_NUMEQUAL            : return "OP_NUMEQUAL",             execNumeric2

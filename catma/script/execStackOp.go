@@ -55,7 +55,7 @@ func execStackOp(ctx *execContext, op Opcode, _ []byte) error {
         }
         s := *(ctx.stack)
         l := len(s)
-        *(ctx.stack) = append(append(append(s[:l-6], s[l-4:]...), s[l-6]), s[l-5])
+        *(ctx.stack) = append(s[:l-6], s[l-4], s[l-3], s[l-2], s[l-1], s[l-6], s[l-5])
     case OP_2SWAP:
         // (x1 x2 x3 x4 -- x3 x4 x1 x2)
         if ctx.stack.height() < 4 {
@@ -63,7 +63,7 @@ func execStackOp(ctx *execContext, op Opcode, _ []byte) error {
         }
         s := *(ctx.stack)
         l := len(s)
-        *(ctx.stack) = append(append(s[:l-4], s[l-2:]...), s[l-4:l-2]...)
+        *(ctx.stack) = append(s[:l-4], s[l-2], s[l-1], s[l-4], s[l-3])
     case OP_IFDUP:
         // Duplicate if true
         if ctx.stack.empty() {
@@ -130,7 +130,7 @@ func execStackOp(ctx *execContext, op Opcode, _ []byte) error {
         }
         s := *(ctx.stack)
         l := len(s)
-        *(ctx.stack) = append(append(append(s[:l-3], s[l-2]), s[l-1]), s[l-3])
+        *(ctx.stack) = append(s[:l-3], s[l-2], s[l-1], s[l-3])
     case OP_SWAP:
         // (x1 x2 -- x2 x1)
         if ctx.stack.height() < 2 {
@@ -138,7 +138,7 @@ func execStackOp(ctx *execContext, op Opcode, _ []byte) error {
         }
         s := *(ctx.stack)
         l := len(s)
-        *(ctx.stack) = append(append(s[:l-2], s[l-1]), s[l-2])
+        *(ctx.stack) = append(s[:l-2], s[l-1], s[l-2])
     case OP_TUCK:
         // (x1 x2 -- x2 x1 x2)
         if ctx.stack.height() < 2 {
@@ -146,7 +146,7 @@ func execStackOp(ctx *execContext, op Opcode, _ []byte) error {
         }
         s := *(ctx.stack)
         l := len(s)
-        *(ctx.stack) = append(append(append(s[:l-2], s[l-1]), s[l-2]), s[l-1])
+        *(ctx.stack) = append(s[:l-2], s[l-1], s[l-2], s[l-1])
     }
     return nil
 }
