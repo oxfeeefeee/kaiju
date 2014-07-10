@@ -1,12 +1,8 @@
 package script
 
 import (
+    "github.com/oxfeeefeee/kaiju/catma/numbers"
     )
-
-const pubKeyMinLen = 33
-const pubKeyMaxLen = 65
-const pubKeyHashLen = 20
-const maxOpReturnRelay = 40
 
 type PKScriptType byte
 
@@ -31,7 +27,7 @@ func (t PKScriptType) String() string {
     }
 }
 
-func (s Script) PKSType() PKScriptType {
+func (s Script) PKScriptType() PKScriptType {
     switch {
     case s.IsTypePubKey():      return PKS_PUBKEY
     case s.IsTypePubKeyHash():  return PKS_PUBKEYHASH
@@ -45,7 +41,8 @@ func (s Script) PKSType() PKScriptType {
 // Returns if PKScipt is of type PKS_PUBKEY
 func (s Script) IsTypePubKey() bool {
     op, operand, next, err := s.getOpcode(0)
-    if err != nil || len(operand) < pubKeyMinLen || len(operand) > pubKeyMaxLen {
+    l := len(operand)
+    if err != nil || l < numbers.MinPubKeyLen || l > numbers.MaxPubKeyLen {
         return false
     }
     op, _, next, err = s.getOpcode(next)
@@ -66,7 +63,7 @@ func (s Script) IsTypePubKeyHash() bool {
         return false
     }
     op, operand, next, err := s.getOpcode(next)
-    if err != nil || len(operand) != pubKeyHashLen {
+    if err != nil || len(operand) != numbers.PubKeyHashLen {
         return false
     }
     op, _, next, err = s.getOpcode(next)
@@ -106,10 +103,11 @@ func (s Script) IsTypeMultiSig() bool {
     for {
         op, operand, np, err := s.getOpcode(next)
         next = np
+        l := len(operand)
         if err == nil {
             if n = op.number(); n >= 0 { // It's OP_N
                 break
-            } else if len(operand) >= pubKeyMinLen && len(operand) <= pubKeyMaxLen {
+            } else if l >= numbers.MinPubKeyLen && l <= numbers.MaxPubKeyLen {
                 count += 1
             } else {
                 return false
@@ -139,18 +137,9 @@ func (s Script) IsTypeNullData() bool {
         return true
     } else {
         _, operand, next, err := s.getOpcode(1)
-        return err != nil && len(operand) <= maxOpReturnRelay &&  next == len(s)
+        return err != nil && 
+            len(operand) <= numbers.MaxOpReturnRelay &&  
+            next == len(s)
     }
 }
 
-func (s Script) IsPushOnly() bool {
-    next := 0
-    for next < len(s){
-        op, _, np, err := s.getOpcode(next)
-        next = np
-        if err != nil || op > OP_16 {
-            return false
-        }
-    }
-    return true
-}

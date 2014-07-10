@@ -109,7 +109,7 @@ func TestPKScriptType(t *testing.T) {
         scr, err := parseScript(str)
         if err != nil {
             t.Errorf("TestPKScriptType error: %s", err)
-        } else if st := scr.PKSType(); st != stype {
+        } else if st := scr.PKScriptType(); st != stype {
             t.Errorf("Expect type %v, got %v", stype, st)
         }
     }

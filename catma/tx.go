@@ -2,10 +2,9 @@ package catma
 
 import (
     "bytes"
-    "errors"
+    //"errors"
     "encoding/binary"
     "github.com/oxfeeefeee/kaiju/klib"
-    "github.com/oxfeeefeee/kaiju/catma/numbers"
 )
 
 const (
@@ -22,11 +21,28 @@ type TxOut struct {
     PKScript        []byte
 }
 
+func (to *TxOut) IsDust() bool {
+    return false // TODO
+}
+
 type OutPoint struct {
     // The hash of the referenced transaction.
     Hash            klib.Hash256
     // The index of the specific output in the transaction. The first output is 0, etc.
     Index           uint32
+}
+
+func (op OutPoint) Equals(op2 OutPoint) bool {
+    return bytes.Equal(op.Hash[:], op2.Hash[:]) && op.Index == op2.Index
+}
+
+func (op *OutPoint) SetNull() {
+    op.Hash.SetZero()
+    op.Index = 0xffffffff
+}
+
+func (op *OutPoint) IsNull() bool {
+    return op.Hash.IsZero() && op.Index == 0xffffffff
 }
 
 type TxIn struct {
@@ -45,10 +61,31 @@ type Tx struct {
     LockTime        uint32
 }
 
+// Returns the sha256^2 of serialized Tx
 func (t *Tx) Hash() *klib.Hash256 {
     return klib.Sha256Sha256(t.Bytes())
 }
 
+// Returns the data size of serialized Tx
+func (t *Tx) ByteSize() int {
+    opLen := 32/*OutPoint.Hash*/ + 4/*OutPoint.Index*/
+    totalLen := 4 // Version
+    totalLen += klib.VarUint(len(t.TxIns)).ByteSize()
+    for _, txin := range t.TxIns {
+        totalLen += opLen
+        totalLen += klib.VarString(txin.SigScript).ByteSize()
+        totalLen += 4 // Sequence
+    }
+    totalLen += klib.VarUint(len(t.TxOuts)).ByteSize()
+    for _, txout := range t.TxOuts {
+        totalLen += 8 // Value
+        totalLen += klib.VarString(txout.PKScript).ByteSize()
+    }
+    totalLen += 4 // LockTime
+    return totalLen
+}
+
+// Returns the serialized byte of the Tx
 func (t *Tx) Bytes() []byte {
     p := new(bytes.Buffer)
     binary.Write(p, binary.LittleEndian, t.Version)
@@ -56,95 +93,18 @@ func (t *Tx) Bytes() []byte {
     p.Write(klib.VarUint(len(t.TxIns)).Bytes())
     for _, txin := range t.TxIns {
         binary.Write(p, binary.LittleEndian, txin.PreviousOutput)
-        p.Write(((*klib.VarString)(&txin.SigScript)).Bytes())
+        p.Write(klib.VarString(txin.SigScript).Bytes())
         binary.Write(p, binary.LittleEndian, txin.Sequence)
     }
     p.Write(klib.VarUint(len(t.TxOuts)).Bytes())
     for _, txout := range t.TxOuts {
         binary.Write(p, binary.LittleEndian, txout.Value)
-        p.Write(((*klib.VarString)(&txout.PKScript)).Bytes())
+        p.Write(klib.VarString(txout.PKScript).Bytes())
     }
     binary.Write(p, binary.LittleEndian, t.LockTime)
     return p.Bytes()
 }
 
-// Returns the string to sign for an input of a TX, invalid index causes panic
-func (t *Tx) HashToSign(subScript []byte, ii int, hashType byte) (*klib.Hash256, error) {
-    if ii >= len(t.TxIns) {
-        return nil, errors.New("Tx.StringToSign invalid index")
-    }
-    anyoneCanPay := (hashType & SIGHASH_ANYONECANPAY) != 0
-    htype := hashType & numbers.HashTypeMask
-    p := new(bytes.Buffer)
-
-    // STEP0: version 
-    binary.Write(p, binary.LittleEndian, t.Version)
-    // STEP1: inputs 
-    if anyoneCanPay {
-        // If SIGHASH_ANYONECANPAY is set, only current input is written, 
-        // and subScipt is used as SigScript 
-        p.Write(klib.VarUint(1).Bytes())                                // inputs count
-        binary.Write(p, binary.LittleEndian, t.TxIns[ii].PreviousOutput)// PreviousOutput
-        p.Write(((klib.VarString)(subScript)).Bytes())                  // subScript
-        binary.Write(p, binary.LittleEndian, t.TxIns[ii].Sequence)      // Sequence
-    } else {
-        // Else write all the inputs with modifications
-        p.Write(klib.VarUint(len(t.TxIns)).Bytes())
-        for i, txin := range t.TxIns {
-            binary.Write(p, binary.LittleEndian, txin.PreviousOutput)
-            if i == ii { // If this is current input, write subScript
-                p.Write(((klib.VarString)(subScript)).Bytes())
-            } else { // Else write an empty VarString
-                p.Write((klib.VarString{}).Bytes())
-            }
-            sequence := txin.Sequence
-            if i != ii && (htype == SIGHASH_NONE || htype == SIGHASH_SINGLE) {
-                // If not current input, and of type SIGHASH_NONE || SIGHASH_SINGLE,
-                // set sequence to 0
-                sequence = 0
-            }
-            binary.Write(p, binary.LittleEndian, sequence)
-        } 
-    }
-    // STEP3: outputs
-    switch htype {
-    case SIGHASH_NONE:
-        p.Write((klib.VarString{}).Bytes())
-    case SIGHASH_SINGLE:
-        if ii >= len(t.TxOuts) {
-            // This is actually allowed due to a Satoshi Bug, right thing to do:
-            // panic("Tx.StringToSign invalid index with type SIGHASH_SINGLE")
-            return new(klib.Hash256).SetUint64(1), nil
-        }
-        p.Write(klib.VarUint(ii + 1).Bytes()) // output count
-        for i:=0; i < ii; i++ { // All outputs except the last one are written as blank
-            binary.Write(p, binary.LittleEndian, int64(-1)) // value
-            p.Write((klib.VarString{}).Bytes()) // script
-        }
-        txout := t.TxOuts[ii]
-        binary.Write(p, binary.LittleEndian, txout.Value)
-        p.Write(((klib.VarString)(txout.PKScript)).Bytes())
-    default:
-        // Another Satoshi Bug: any other hashtype are considered as SIGHASH_ALL
-        p.Write(klib.VarUint(len(t.TxOuts)).Bytes())
-        for _, txout := range t.TxOuts {
-            binary.Write(p, binary.LittleEndian, txout.Value)
-            p.Write(((klib.VarString)(txout.PKScript)).Bytes())
-        }
-    }
-    // STEP4: LockTime and HashType
-    binary.Write(p, binary.LittleEndian, t.LockTime)
-    // Notice hashTypes needs to take 4 bytes
-    binary.Write(p, binary.LittleEndian, uint32(hashType))
-    return klib.Sha256Sha256(p.Bytes()), nil
-}
-
-type InputEntry struct {
-    tx              *Tx
-    index           int
-}
-
-// Returns the string to sign for an input of a TX, invalid index causes panic
-func (e *InputEntry) HashToSign(subScript []byte, hashType byte) (*klib.Hash256, error) {
-    return e.tx.HashToSign(subScript, e.index, hashType)
+func (t *Tx) IsCoinBase() bool {
+    return len(t.TxIns) == 1 && t.TxIns[0].PreviousOutput.IsNull()
 }

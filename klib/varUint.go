@@ -36,6 +36,21 @@ func (v VarUint) Bytes() []byte {
     return buffer[:dataLen]
 }
 
+func (v VarUint) ByteSize() int {
+    dataLen := 0
+    switch {
+    case v < 0xfd:
+        dataLen = 1
+    case v <= 0xffff:
+        dataLen = 3
+    case v <= 0xffffffff:
+        dataLen = 5
+    case v > 0xffffffff:
+        dataLen = 9
+    }
+    return dataLen
+}
+
 func (v VarUint) Serialize(w io.Writer) error {
     _, err := w.Write(v.Bytes())
     return err

@@ -48,6 +48,46 @@ func (s *Script) AppendPushInt(v int64) {
     }
 }
 
+// Returns if all opcode are data push
+func (s Script) IsPushOnly() bool {
+    next := 0
+    for next < len(s){
+        op, _, np, err := s.getOpcode(next)
+        next = np
+        if err != nil || op > OP_16 {
+            return false
+        }
+    }
+    return true
+}
+
+// Returns if all data-push-opcodes are canonical
+func (s Script) PushesCanonical() bool {
+    next := 0
+    for next < len(s){
+        op, operand, np, err := s.getOpcode(next)
+        next = np
+        if err != nil {
+            return false
+        }
+        switch {
+        case op > OP_PUSHDATA00 && op < OP_PUSHDATA1:
+            // Could have used an OP_N, rather than a 1-byte push.
+            return !(len(operand) == 1 && operand[0] <= 16)
+        case op == OP_PUSHDATA1:
+            // Could have used an OP_PUSHDATAXX, rather than OP_PUSHDATA1.
+            return len(operand) >= int(OP_PUSHDATA1)
+        case op == OP_PUSHDATA2:
+            // Could have used an OP_PUSHDATA1.
+            return len(operand) > 0xFF
+        case op == OP_PUSHDATA4:
+            return len(operand) > 0xFFFF
+        }
+    }
+    return true
+}
+
+// Returns opcode at p and related data
 func (s Script) getOpcode(p int) (op Opcode, operand []byte, next int, err error) {
     if p >= len(s) {
         err = errEOS

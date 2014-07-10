@@ -3,12 +3,15 @@
 package klib
 
 import (
+    "bytes"
     "errors"
     "encoding/hex"
     )
 
 // A 256 bit hash, e.g. result of sha256
 type Hash256 [32]byte
+
+var zeroHash256 Hash256
 
 // Little endian
 func (h *Hash256) SetUint64(v uint64) *Hash256 {
@@ -47,4 +50,8 @@ func (h *Hash256) String() string {
 
 func (h *Hash256) SetZero() {
     for i := range h { h[i] = 0 }
+}
+
+func (h *Hash256) IsZero() bool {
+    return bytes.Equal(h[:], zeroHash256[:])
 }

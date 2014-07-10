@@ -14,6 +14,11 @@ func (s VarString) Bytes() []byte {
     return append(data, []byte(s)...)
 }
 
+func (s VarString) ByteSize() int {
+    l := VarUint(len(s)).ByteSize()
+    return l + len(s)
+}
+
 func (s VarString) Serialize(w io.Writer) error {
     _, err := w.Write(s.Bytes())
     return err

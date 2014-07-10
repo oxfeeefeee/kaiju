@@ -7,48 +7,50 @@ import (
 // Script erros are listed here to avoid errors.New calls and to 
 // make it easier to manage
 
-var errScriptIntOverflow = errors.New("ScriptInt.SetBytes: slice length larger than Maximum")
+var (
+    errScriptIntOverflow = errors.New("ScriptInt.SetBytes: slice length larger than Maximum")
 
-var errEOS = errors.New("Script.getOpcode: End of script")
+    errEOS = errors.New("Script.getOpcode: End of script")
 
-var errDataNotFoundToPush = errors.New("Script.getOpcode: Data size not found after OP_PUSHDATAX")
+    errDataNotFoundToPush = errors.New("Script.getOpcode: Data size not found after OP_PUSHDATAX")
 
-var errInvalidOp =  errors.New("eval: Invalid opcode")
+    errInvalidOp =  errors.New("eval: Invalid opcode")
 
-var errOpcodeCount = errors.New("eval: Opcode count exceeds limit")
+    errOpcodeCount = errors.New("eval: Opcode count exceeds limit")
 
-var errStackItemMissing = errors.New("eval: Stack item count less than expected")
+    errStackItemMissing = errors.New("eval: Stack item count less than expected")
 
-var errIfElseMismatch = errors.New("eval: OP_IF / OP_ELSE / OP_ENDIF mismatch")
+    errIfElseMismatch = errors.New("eval: OP_IF / OP_ELSE / OP_ENDIF mismatch")
 
-var errVerifyFailed = errors.New("eval: OP_VERIFY failed")
+    errVerifyFailed = errors.New("eval: OP_VERIFY failed")
 
-var errEqualVerifyFailed = errors.New("eval: OP_EQUALVERIFY failed")
+    errEqualVerifyFailed = errors.New("eval: OP_EQUALVERIFY failed")
 
-var errReturned = errors.New("eval: OP_RETURN")
+    errReturned = errors.New("eval: OP_RETURN")
 
-var errIndexOutOfRange = errors.New("eval: OP_PICK/OP_ROLL index out of range")
+    errIndexOutOfRange = errors.New("eval: OP_PICK/OP_ROLL index out of range")
 
-var errKeySigCountOutOfRange = errors.New("eval: MultiSig key/sig index out of range")
+    errKeySigCountOutOfRange = errors.New("eval: MultiSig key/sig index out of range")
 
-var errDummyArgNotNull = errors.New("CHECKMULTISIG dummy argument not null")
+    errDummyArgNotNull = errors.New("CHECKMULTISIG dummy argument not null")
 
-var errSigVerify = errors.New("Signature verification failed")
+    errSigVerify = errors.New("Signature verification failed")
 
-var errPKNonCanonical = errors.New("Non-canonical public key")
+    errPKNonCanonical = errors.New("Non-canonical public key")
 
-var errSigNonCanonical = errors.New("Non-canonical signature")
+    errSigNonCanonical = errors.New("Non-canonical signature")
 
-var errEvalNotTrue = errors.New("Eval result is not true")
+    errEvalNotTrue = errors.New("Eval result is not true")
 
-var errP2SHSigNotPushOnly = errors.New("P2SH sigScript not push-only")
+    errP2SHSigNotPushOnly = errors.New("P2SH sigScript not push-only")
 
-var errEmptySig = errors.New("verifySig: empty signature")
+    errEmptySig = errors.New("verifySig: empty signature")
 
-var errStackSizeLimit = errors.New("eval: stack size exceeded limit")
+    errStackSizeLimit = errors.New("eval: stack size exceeded limit")
 
-var errOperandSizeLimit = errors.New("eval: size of opcode operand exceeded limit")
+    errOperandSizeLimit = errors.New("eval: size of opcode operand exceeded limit")
 
-var errScriptSizeLimit = errors.New("eval: size of script exceeded limit")
+    errScriptSizeLimit = errors.New("eval: size of script exceeded limit")
 
-var errDisabledOp = errors.New("eval: Disabled opcode in script")
+    errDisabledOp = errors.New("eval: Disabled opcode in script")
+    )

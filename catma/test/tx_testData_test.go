@@ -1,3 +1,4 @@
+// Test data taken from Satoshi client
 package test
 
 var validTxs_ = `
