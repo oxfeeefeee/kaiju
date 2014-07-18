@@ -7,38 +7,38 @@ import (
 type PKScriptType byte
 
 const (
-    PKS_NONSTANDARD PKScriptType = iota
-    PKS_PUBKEY
-    PKS_PUBKEYHASH
-    PKS_SCRIPTHASH
-    PKS_MULTISIG
-    PKS_NULLDATA
+    PKS_NonStandard PKScriptType = iota
+    PKS_PubKey
+    PKS_PubKeyHash
+    PKS_ScriptHash
+    PKS_MultiSig
+    PKS_NullData
 )
 
 func (t PKScriptType) String() string {
     switch t {
-    case PKS_NONSTANDARD:   return "PKS_NONSTANDARD"
-    case PKS_PUBKEY:        return "PKS_PUBKEY"
-    case PKS_PUBKEYHASH:    return "PKS_PUBKEYHASH"
-    case PKS_SCRIPTHASH:    return "PKS_SCRIPTHASH"
-    case PKS_MULTISIG:      return "PKS_MULTISIG"
-    case PKS_NULLDATA:      return "PKS_NULLDATA"
-    default:                return "PKS_INVALID"
+    case PKS_NonStandard:   return "PKS_NonStandard"
+    case PKS_PubKey:        return "PKS_PubKey"
+    case PKS_PubKeyHash:    return "PKS_PubKeyHash"
+    case PKS_ScriptHash:    return "PKS_ScriptHash"
+    case PKS_MultiSig:      return "PKS_MultiSig"
+    case PKS_NullData:      return "PKS_NullData"
+    default:                return "PKS_Invalid"
     }
 }
 
 func (s Script) PKScriptType() PKScriptType {
     switch {
-    case s.IsTypePubKey():      return PKS_PUBKEY
-    case s.IsTypePubKeyHash():  return PKS_PUBKEYHASH
-    case s.IsTypeScriptHash():  return PKS_SCRIPTHASH
-    case s.IsTypeNullData():    return PKS_NULLDATA
-    case s.IsTypeMultiSig():    return PKS_MULTISIG
-    default:                    return PKS_NONSTANDARD
+    case s.IsTypePubKey():      return PKS_PubKey
+    case s.IsTypePubKeyHash():  return PKS_PubKeyHash
+    case s.IsTypeScriptHash():  return PKS_ScriptHash
+    case s.IsTypeNullData():    return PKS_NullData
+    case s.IsTypeMultiSig():    return PKS_MultiSig
+    default:                    return PKS_NonStandard
     }
 }
 
-// Returns if PKScipt is of type PKS_PUBKEY
+// Returns if PKScipt is of type PKS_PubKey
 func (s Script) IsTypePubKey() bool {
     op, operand, next, err := s.getOpcode(0)
     l := len(operand)
@@ -52,7 +52,7 @@ func (s Script) IsTypePubKey() bool {
     return next == len(s)
 }
 
-// Returns if PKScipt is of type PKS_PUBKEYHASH
+// Returns if PKScipt is of type PKS_PubKeyHash
 func (s Script) IsTypePubKeyHash() bool {
     op, _, next, err := s.getOpcode(0)
     if err != nil || op != OP_DUP {
@@ -77,7 +77,7 @@ func (s Script) IsTypePubKeyHash() bool {
     return next == len(s)
 }
 
-// Returns if PKScipt is of type PKS_SCRIPTHASH
+// Returns if PKScipt is of type PKS_ScriptHash
 func (s Script) IsTypeScriptHash() bool {
     return len(s) == 23 &&
         Opcode(s[0])  == OP_HASH160 &&
@@ -85,7 +85,7 @@ func (s Script) IsTypeScriptHash() bool {
         Opcode(s[22]) == OP_EQUAL
 }
 
-// Returns if PKScipt is of type PKS_MULTISIG
+// Returns if PKScipt is of type PKS_MultiSig
 func (s Script) IsTypeMultiSig() bool {
     if len(s) < 1 {
         return false
@@ -128,7 +128,7 @@ func (s Script) IsTypeMultiSig() bool {
     return m >=1 && n >= 1 && m <= n && count == n && next == len(s)
 }
 
-// Returns if PKScipt is of type PKS_NULLDATA
+// Returns if PKScipt is of type PKS_NullData
 func (s Script) IsTypeNullData() bool {
     if len(s) < 1 || Opcode(s[0]) != OP_RETURN {
         return false

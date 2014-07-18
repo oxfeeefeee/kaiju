@@ -22,7 +22,7 @@ type TxOut struct {
 }
 
 func (to *TxOut) IsDust() bool {
-    return false // TODO
+    return false // TODO_1
 }
 
 type OutPoint struct {

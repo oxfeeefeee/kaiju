@@ -6,6 +6,10 @@ import (
     "github.com/oxfeeefeee/kaiju/catma/numbers"
 )
 
+type UTXOs interface {
+    GetTxOut(op *OutPoint) *TxOut
+}
+
 var (
     // Tx.FormatCheck ----------------------------------------------------------------
     errEmptyInput = errors.New("Tx.FormatCheck: empty input")
@@ -116,9 +120,9 @@ func (t *Tx) IsStandard(blockHeight uint32, blockTime uint32) error {
     dataOut := 0
     for _, txout := range t.TxOuts {
         sType := script.Script(txout.PKScript).PKScriptType()
-        if sType == script.PKS_NONSTANDARD {
+        if sType == script.PKS_NonStandard {
             return errNonStandardPKScript
-        } else if sType == script.PKS_NULLDATA {
+        } else if sType == script.PKS_NullData {
             dataOut++
         } else if txout.IsDust() {
             return errDustTxOut
@@ -141,3 +145,44 @@ func (t *Tx) IsFinal(blockHeight uint32, blockTime uint32) bool {
         return t.LockTime < blockTime
     }
 }
+
+// Check inputs and the "script" of pay-to-script-hash
+func (t *Tx) InputsStandard(utxos UTXOs) bool {
+    if t.IsCoinBase() {
+        return true
+    }
+    for _, txi := range t.TxIns {
+        txo := utxos.GetTxOut(&txi.PreviousOutput)
+        pkScript := script.Script(txo.PKScript)
+        ttype := pkScript.PKScriptType()
+        ok, argCount := pkScript.SigArgsExpected(ttype)
+        if !ok {
+            return false
+        }
+        err, result := script.RunSigScript(txi.SigScript)
+        if err != nil {
+            return false
+        }
+        if ttype == script.PKS_ScriptHash {
+            if len(result) == 0 {
+                return false
+            }
+            pkScript := script.Script(result[len(result)-1])
+            ttype := pkScript.PKScriptType()
+            if ttype == script.PKS_ScriptHash {
+                return false // Recursive P2SH
+            }
+            ok, count := pkScript.SigArgsExpected(ttype)
+            if !ok {
+                return false
+            }
+            argCount += count
+        }
+        if len(result) != argCount {
+            return false
+        }
+    }
+    return true
+}
+
+

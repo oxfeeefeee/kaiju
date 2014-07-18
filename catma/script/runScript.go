@@ -17,6 +17,16 @@ const (
     EvalFlagNullDummy       
 )
 
+func RunSigScript(sigScript Script) (error, [][]byte) {
+    sstack := stack{}
+    err := sstack.eval(sigScript, nil, EvalFlagNone)
+    if err != nil {
+        return err, nil
+    } else {
+        return nil, (interface{}(sstack)).([][]byte)
+    }
+}
+
 // Runs pure scripts(without CheckSig), returns evaluation result or error
 func RunScript(pkScript Script, sigScript Script) error {
     return VerifyScript(pkScript, sigScript, nil, EvalFlagP2SH)

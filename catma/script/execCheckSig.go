@@ -96,7 +96,7 @@ func execCheckMultiSig(ctx *execContext, op Opcode, _ []byte) error {
         }
     }
 
-    // A old bug causes CHECKMULTISIG to consume an extra item on the stack
+    // A Satoshi Bug causes CHECKMULTISIG to consume an extra item on the stack
     // We first clear all the "real" arguments
     stk := *ctx.stack
     *ctx.stack = stk[:len(stk)-i+1]
@@ -164,7 +164,6 @@ func removeSig(subScript Script, sig []byte) (Script, error) {
     }
     return subScript, nil
 }
-
 
 func checkKeySig(c scriptContext, pk []byte, sig []byte, subScript Script, flags EvalFlag) error {
     if (flags & EvalFlagStrictEnc) != 0 {

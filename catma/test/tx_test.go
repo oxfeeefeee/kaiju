@@ -12,7 +12,7 @@ import (
     "fmt"
     "strings"
     //"strconv"
-    "errors"
+    //"errors"
     //"encoding/hex"
 )
 
@@ -22,29 +22,36 @@ type prevOutput struct {
     pkScript []byte
 }
 
-func (ti *prevOutput) String() string {
-    return fmt.Sprintf("Phash: %s[%d]\n PKScript: %s\n", ti.prevHash, ti.prevIndex, ti.pkScript)
+func (p *prevOutput) String() string {
+    return fmt.Sprintf("Phash: %s[%d]\n PKScript: %s\n", p.prevHash, p.prevIndex, p.pkScript)
+}
+
+type prevOutputs []*prevOutput
+
+func (p *prevOutputs) GetTxOut(op *catma.OutPoint) *catma.TxOut {
+    for _, out := range *p {
+        if op.Hash == out.prevHash && op.Index == out.prevIndex {
+            return &catma.TxOut{0, out.pkScript}
+        }
+    }
+    return nil
 }
 
 type txTestCase struct {
-    pos []*prevOutput
+    pos prevOutputs
     tx *catma.Tx
     flags script.EvalFlag
 }
 
 func (c *txTestCase) valid() error {
+    err := c.tx.FormatCheck()
+    if err != nil {
+        return err
+    }
+
     for i, txin := range c.tx.TxIns {
-        prevOut := txin.PreviousOutput
-        var pkScript []byte
-        for _, po := range c.pos {
-            if prevOut.Hash == po.prevHash && prevOut.Index == po.prevIndex {
-                pkScript = po.pkScript
-            }
-        }
-        if pkScript == nil {
-            return errors.New("Couldn't find PreviousOutput")
-        }
-        err := catma.VerifyInputWithFlags(pkScript, c.tx, i, c.flags)
+        txo := c.pos.GetTxOut(&txin.PreviousOutput)
+        err := catma.VerifyInputWithFlags(txo.PKScript, c.tx, i, c.flags)
         if err != nil {
             //fmt.Printf("tx Fail!\n")
             return err

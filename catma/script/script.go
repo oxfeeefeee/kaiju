@@ -87,6 +87,26 @@ func (s Script) PushesCanonical() bool {
     return true
 }
 
+// Returns (True, how-many-items-on-stack) after SigScript is run 
+// for valid standard PKScript, (False, 0) otherwise
+
+func (s Script) SigArgsExpected(t PKScriptType) (bool, int) {
+    switch t {
+    case PKS_NonStandard, PKS_NullData:
+        return false, 0
+    case PKS_PubKey:
+        return true, 1  // Expect: <sig>
+    case PKS_PubKeyHash:
+        return true, 2  // Expect: <sig> <pubKey>
+    case PKS_ScriptHash:
+        return true, 1  // Expect: <sig> <script> but <script> doesn't count
+    case PKS_MultiSig:
+        m := Opcode(s[0]).number()
+        return true, m + 1    // Expect: m * <sig> + Satoshi_Bug
+    }
+    return false, 0
+}
+
 // Returns opcode at p and related data
 func (s Script) getOpcode(p int) (op Opcode, operand []byte, next int, err error) {
     if p >= len(s) {
