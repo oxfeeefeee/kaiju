@@ -8,20 +8,32 @@
 package node 
 
 import (
+    "time"
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/kio"
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
     "github.com/oxfeeefeee/kaiju/blockchain"
+    "github.com/oxfeeefeee/kaiju/blockchain/cold"
 )
 
 func catchUp() {
-    for moreHeaders() {}
+    for !headerUpToDate() {
+        moreHeaders()
+    }
+
     for moreBlocks() {}
 }
 
-func moreHeaders() bool {
-    c := blockchain.Chain()
-    l := c.GetLocator()
+// Returns if we should stop catching up
+func headerUpToDate() bool {
+    headers := cold.TheHeaders()
+    h := headers.Get(headers.Len() - 1)
+    return h.Time().Add(time.Hour * 2).After(time.Now())
+}
+
+func moreHeaders() {
+    headers := cold.TheHeaders()
+    l := headers.GetLocator()
     msg := btcmsg.NewGetHeadersMsg()
     mg := msg.(*btcmsg.Message_getheaders)
     mg.BlockLocators = l
@@ -35,12 +47,11 @@ func moreHeaders() bool {
     mh := kio.ParalMsgForMsg(mg, f, 3)
     if mh != nil {
         h, _ := mh.(*btcmsg.Message_headers)
-        err := c.AppendHeaders(h.Headers)
+        err := headers.Append(h.Headers)
         if err != nil {
             logger().Printf("Error appending headers: %s", err)
         }
     }
-    return !c.UpToDate()
 }
 
 func moreBlocks() bool {
@@ -48,7 +59,6 @@ func moreBlocks() bool {
     for i := 1; i <= 500; i++ {
         idx = append(idx, i)
     }
-    logger().Debugf("aaaaaaaa")
     blocks := getBlocks(idx)
     for _, b := range blocks {
         logger().Debugf("%s \n", b.(*btcmsg.Message_block).Header)
@@ -57,8 +67,7 @@ func moreBlocks() bool {
 }
 
 func getBlocks(idx []int) []btcmsg.Message {
-    c := blockchain.Chain()
-    inv := c.GetInv(idx)
+    inv := blockchain.GetInv(idx)
     msg := btcmsg.NewGetDataMsg()
     m := msg.(*btcmsg.Message_getdata)
     m.Inventory = inv

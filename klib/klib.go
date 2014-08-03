@@ -28,5 +28,5 @@ func UInt32ToBytes(i uint32) []byte {
 
 // Handy function
 func logger() *kaiju.Logger {
-    return kaiju.KlibLogger
+    return kaiju.MainLogger()
 }

@@ -5,7 +5,16 @@ package node
 
 import (
     "github.com/oxfeeefeee/kaiju"
+    "github.com/oxfeeefeee/kaiju/blockchain"
 )
+
+func Init() error {
+    return blockchain.Init()
+}
+
+func Destroy() error {
+    return blockchain.Destroy()
+}
 
 func Start() {
     go func() {
@@ -18,5 +27,5 @@ func Start() {
 
 // Handy function
 func logger() *kaiju.Logger {
-    return kaiju.NodeLogger
+    return kaiju.MainLogger()
 }

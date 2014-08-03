@@ -154,5 +154,5 @@ func (s Script) getOpcode(p int) (op Opcode, operand []byte, next int, err error
 
 // Handy function
 func logger() *kaiju.Logger {
-    return kaiju.CatmaScriptLogger
+    return kaiju.MainLogger()
 }

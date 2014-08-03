@@ -252,5 +252,5 @@ func (db *KDB) slotCount() int64 {
 
 // Handy function
 func logger() *kaiju.Logger {
-    return kaiju.KDBLogger
+    return kaiju.MainLogger()
 }

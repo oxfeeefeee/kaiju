@@ -120,7 +120,7 @@ func PeerPool() *Pool {
 
 // Handy function
 func logger() *kaiju.Logger {
-    return kaiju.KioLogger
+    return kaiju.MainLogger()
 }
 
 

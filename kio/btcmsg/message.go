@@ -109,5 +109,5 @@ func readData(r io.Reader, data interface{}, lastError error) error {
 
 // Handy function
 func logger() *kaiju.Logger {
-    return kaiju.KioMsgLogger
+    return kaiju.MainLogger()
 }

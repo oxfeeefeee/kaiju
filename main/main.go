@@ -9,14 +9,13 @@ import (
     "github.com/oxfeeefeee/kaiju/profiling"
     "github.com/oxfeeefeee/kaiju/kio"
     "github.com/oxfeeefeee/kaiju/node"
-    "github.com/oxfeeefeee/kaiju/blockchain"
 )
 
 func mainCleanUp(){
-    kaiju.MainLogger().Printf("Cleaning up...")
-    err := blockchain.CloseFiles()
+    logger().Printf("Cleaning up...")
+    err := node.Destroy()
     if err != nil {
-        kaiju.MainLogger().Printf("Failed to close files: %s", err.Error())
+        logger().Printf("Error destroying node: %s", err.Error())
     }
 }
 
@@ -29,19 +28,20 @@ func mainFunc() {
 
     err := kaiju.ReadJsonConfigFile()
     if err != nil {
-        kaiju.MainLogger().Printf("Failed to ready config file: %s", err.Error())
+        logger().Printf("Failed to ready config file: %s", err.Error())
         return;
     }
 
-    err = blockchain.InitFiles()
-    if err != nil {
-        kaiju.MainLogger().Printf("Failed to init files: %s", err.Error())
-        return;
-    }
-
-    kaiju.MainLogger().Printf("starting kio...")
+    kaiju.MainLogger().Printf("Starting KIO...")
     <- kio.Start(10)
-    kaiju.MainLogger().Printf("kio initialized.")
+    kaiju.MainLogger().Printf("KIO initialized.")
+
+    kaiju.MainLogger().Printf("Initializing kio...")
+    err = node.Init()
+    if err != nil {
+        logger().Printf("Error initializing node: %s", err.Error())
+    }
+    kaiju.MainLogger().Printf("Starting kio...")
     node.Start()
     kaiju.MainLogger().Printf("node started.")
 
@@ -52,4 +52,9 @@ func mainFunc() {
 
 func main() {
     mainFunc()
+}
+
+// Handy function
+func logger() *kaiju.Logger {
+    return kaiju.MainLogger()
 }

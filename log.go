@@ -7,20 +7,10 @@ import (
     "strings"
     )
 
-var mainLogger, KioLogger, KioMsgLogger, KlibLogger *Logger
-var KDBLogger, BlockchainLogger, NodeLogger *Logger
-var CatmaLogger, CatmaScriptLogger *Logger
+var mainLogger *Logger
 
 func init() {
     mainLogger = createLogger("main")
-    KioLogger = createLogger("kio")
-    KioMsgLogger = createLogger("kio.msg")
-    KDBLogger = createLogger("kdb")
-    BlockchainLogger = createLogger("kdb")
-    NodeLogger = createLogger("node")
-    KlibLogger = createLogger("klib")
-    CatmaLogger = createLogger("catma")
-    CatmaScriptLogger = createLogger("catma.script")
 }
 
 type Logger struct{

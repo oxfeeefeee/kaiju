@@ -45,5 +45,5 @@ func VerifySig(pkScript []byte, sigScript []byte) bool {
 
 // Handy function
 func logger() *kaiju.Logger {
-    return kaiju.CatmaLogger
+    return kaiju.MainLogger()
 }
