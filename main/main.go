@@ -20,6 +20,15 @@ func mainCleanUp(){
 }
 
 func mainFunc() {
+    c := make(chan struct{})
+    defer func() {
+        if r := recover(); r != nil {
+            logger().Printf("Main func paniced:", r)
+            logger().Printf("Exiting ...")
+            close(c)
+        }
+    }()
+
     runtime.GOMAXPROCS(runtime.NumCPU())
     
     profiling.RunProfiler()
@@ -36,17 +45,17 @@ func mainFunc() {
     <- kio.Start(10)
     kaiju.MainLogger().Printf("KIO initialized.")
 
-    kaiju.MainLogger().Printf("Initializing kio...")
+    kaiju.MainLogger().Printf("Initializing Node...")
     err = node.Init()
     if err != nil {
-        logger().Printf("Error initializing node: %s", err.Error())
+        logger().Printf("Error initializing Node: %s", err.Error())
+        return;
     }
-    kaiju.MainLogger().Printf("Starting kio...")
+    kaiju.MainLogger().Printf("Starting Node...")
     node.Start()
-    kaiju.MainLogger().Printf("node started.")
+    kaiju.MainLogger().Printf("Node started.")
 
     // Don't quit
-    c := make(chan struct{})
     _ = <- c
 }
 

@@ -174,7 +174,7 @@ func (pool *Pool) onPeerUp(p *Peer) {
         logger().Printf("Waring, Peer already added %v", op.info)    
     }
     pool.peers[p.myID] = p
-    logger().Debugf("+Peer count: %v", len(pool.peers))
+    //logger().Debugf("+Peer count: %v", len(pool.peers))
 }
 
 // Member of Monitor interface

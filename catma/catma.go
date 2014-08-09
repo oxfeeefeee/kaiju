@@ -4,28 +4,69 @@ package catma
 import (
     "errors"
     "github.com/oxfeeefeee/kaiju"
+    "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma/script"
 )
 
-type InputVerifyType uint32
+type UtxoSet interface {
+    Get(h *klib.Hash256, i uint32) ([]byte, error)
+    Use(h *klib.Hash256, i uint32, val []byte) error
+    Add(h *klib.Hash256, i uint32, val []byte) error
+}
 
-const (
-    InputVerifyPreBIP16 InputVerifyType = iota
-    InputVerifyMandatory
-    InputVerifyStandard
-)
+func VerifyTx(tx *Tx, utxo UtxoSet, preBip16 bool, standard bool) error {
+    err := tx.FormatCheck()
+    if err != nil {
+        return err
+    }
+    // more checks...
 
-func VerifyInput(pkScript []byte, tx *Tx, idx int, vt InputVerifyType) error {
+    if !tx.IsCoinBase() {
+        logger().Debugf("yesyesyes %s", tx.Hash())
+        for i, txi := range tx.TxIns {
+            op := &(txi.PreviousOutput)
+            opBytes, err := utxo.Get(&op.Hash, op.Index)
+            if err != nil {
+                return err
+            } else if opBytes == nil {
+                return errors.New("VerifyTx: Cannot find input.")
+            }
+            var txo TxOut
+            txo.FromBytes(opBytes)
+            err = VerifyInput(txo.PKScript, tx, i, preBip16, standard)
+            if err != nil {
+                return err
+            }
+        }
+        for _, txi := range tx.TxIns {
+            op := &(txi.PreviousOutput)
+            err := utxo.Use(&op.Hash, op.Index, nil)
+            if err != nil {
+                return err
+            }
+        }
+    }
+    hash := tx.Hash()
+    for i, txo := range tx.TxOuts {
+        err := utxo.Add(hash, uint32(i), txo.Bytes())
+        if err != nil {
+            return err
+        }
+    }
+    return nil
+}
+
+func VerifyInput(pkScript []byte, tx *Tx, idx int, preBip16 bool, standard bool) error {
     var evalFlags script.EvalFlag
-    switch vt {
-    case InputVerifyPreBIP16:
+    if preBip16 {
         evalFlags = script.EvalFlagNone
-    case InputVerifyMandatory:
+    } else if standard {
+        evalFlags = 
+            script.EvalFlagP2SH | 
+            script.EvalFlagStrictEnc | 
+            script.EvalFlagNullDummy
+    } else {
         evalFlags = script.EvalFlagP2SH
-    case InputVerifyStandard:
-        evalFlags = script.EvalFlagP2SH | script.EvalFlagStrictEnc | script.EvalFlagNullDummy
-    default:
-        return errors.New("VerifyInput: Invalid verify type")
     }
     return VerifyInputWithFlags(pkScript, tx, idx, evalFlags)
 }
@@ -37,10 +78,6 @@ func VerifyInputWithFlags(pkScript []byte, tx *Tx, idx int, flags script.EvalFla
     sig := tx.TxIns[idx].SigScript
     ie := &InputEntry{tx, idx}
     return script.VerifyScript(pkScript, sig, ie, flags)
-}
-
-func VerifySig(pkScript []byte, sigScript []byte) bool {
-    return true
 }
 
 // Handy function

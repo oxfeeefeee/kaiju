@@ -14,13 +14,13 @@ func Sha256Sha256(p []byte) *Hash256 {
     return &hash
 }
 
-func UInt16ToBytes(i uint16) []byte {
+func Uint16ToBytes(i uint16) []byte {
     p := make([]byte, 2)
     binary.LittleEndian.PutUint16(p, i)
     return p
 }
 
-func UInt32ToBytes(i uint32) []byte {
+func Uint32ToBytes(i uint32) []byte {
     p := make([]byte, 4)
     binary.LittleEndian.PutUint32(p, i)
     return p

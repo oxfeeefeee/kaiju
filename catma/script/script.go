@@ -31,10 +31,10 @@ func (s *Script) AppendPushData(p []byte) {
         s.AppendData([]byte{byte(len(p)),})
     case len(p) <= 0xffff:
         s.AppendOp(OP_PUSHDATA2)
-        s.AppendData(klib.UInt16ToBytes(uint16(len(p))))
+        s.AppendData(klib.Uint16ToBytes(uint16(len(p))))
     default:
         s.AppendOp(OP_PUSHDATA4)
-        s.AppendData(klib.UInt32ToBytes(uint32(len(p))))
+        s.AppendData(klib.Uint32ToBytes(uint32(len(p))))
     } 
     s.AppendData(p)
 }

@@ -21,28 +21,11 @@ type TxOut struct {
     PKScript        []byte
 }
 
-func (to *TxOut) IsDust() bool {
-    return false // TODO_1
-}
-
 type OutPoint struct {
     // The hash of the referenced transaction.
     Hash            klib.Hash256
     // The index of the specific output in the transaction. The first output is 0, etc.
     Index           uint32
-}
-
-func (op OutPoint) Equals(op2 OutPoint) bool {
-    return bytes.Equal(op.Hash[:], op2.Hash[:]) && op.Index == op2.Index
-}
-
-func (op *OutPoint) SetNull() {
-    op.Hash.SetZero()
-    op.Index = 0xffffffff
-}
-
-func (op *OutPoint) IsNull() bool {
-    return op.Hash.IsZero() && op.Index == 0xffffffff
 }
 
 type TxIn struct {
@@ -59,6 +42,36 @@ type Tx struct {
     TxIns           []*TxIn
     TxOuts          []*TxOut
     LockTime        uint32
+}
+
+func (to *TxOut) IsDust() bool {
+    return false // TODO_1
+}
+
+func (to *TxOut) Bytes() []byte {
+    var p bytes.Buffer
+    binary.Write(&p, binary.LittleEndian, to.Value)
+    p.Write(to.PKScript)
+    return p.Bytes()
+}
+
+func (to *TxOut) FromBytes(p []byte)  {
+    b := bytes.NewBuffer(p)
+    binary.Read(b, binary.LittleEndian, &to.Value)
+    to.PKScript = b.Bytes()
+}
+
+func (op OutPoint) Equals(op2 OutPoint) bool {
+    return bytes.Equal(op.Hash[:], op2.Hash[:]) && op.Index == op2.Index
+}
+
+func (op *OutPoint) SetNull() {
+    op.Hash.SetZero()
+    op.Index = 0xffffffff
+}
+
+func (op *OutPoint) IsNull() bool {
+    return op.Hash.IsZero() && op.Index == 0xffffffff
 }
 
 // Returns the sha256^2 of serialized Tx

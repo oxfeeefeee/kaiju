@@ -25,12 +25,6 @@ type Headers interface {
     GetLocator() []*klib.Hash256
 }
 
-type OutputDB interface {
-    HasOutput(hash *klib.Hash256, index int, value int64) bool
-    UseOutput(hash *klib.Hash256, index int, value int64) error
-    AddOutput(hash *klib.Hash256, index int, value int64) error
-}
-
 func Init() error {
     if bcFiles != nil || theHeaders != nil || theOutputDB != nil {
         errors.New("Init seems to be called before")
@@ -63,7 +57,7 @@ func TheHeaders() Headers {
     return theHeaders
 }
 
-func TheOutputDB() OutputDB {
+func TheOutputDB() catma.UtxoSet {
     return theOutputDB
 }
 

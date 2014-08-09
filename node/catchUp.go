@@ -12,6 +12,7 @@ import (
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/kio"
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
+    "github.com/oxfeeefeee/kaiju/catma"
     "github.com/oxfeeefeee/kaiju/blockchain"
     "github.com/oxfeeefeee/kaiju/blockchain/cold"
 )
@@ -21,7 +22,7 @@ func catchUp() {
         moreHeaders()
     }
 
-    for moreBlocks() {}
+    moreBlocks()
 }
 
 // Returns if we should stop catching up
@@ -56,53 +57,77 @@ func moreHeaders() {
 
 func moreBlocks() bool {
     idx := make([]int, 0)
-    for i := 1; i <= 500; i++ {
+    for i := 1; i <= 20000; i++ {
         idx = append(idx, i)
     }
-    blocks := getBlocks(idx)
-    for _, b := range blocks {
-        logger().Debugf("%s \n", b.(*btcmsg.Message_block).Header)
+    blocks, err := getBlocks(idx)
+    if err != nil {
+        logger().Debugf("getBlocks error %s", err)
     }
+    logger().Debugf("Got %d blocks\n", len(blocks))
+    processBlocks(blocks)
     return true
 }
 
-func getBlocks(idx []int) []btcmsg.Message {
+func processBlocks(bmsgs []btcmsg.Message) {
+    db := cold.TheOutputDB()
+    for _, m := range bmsgs {
+        bm, _ := m.(*btcmsg.Message_block)
+        for _, tx := range bm.Txs {
+            err := catma.VerifyTx((*catma.Tx)(tx), db, true, false)
+            if err != nil {
+                logger().Printf("Process block error: %s", err)
+            }
+        }
+    }
+}
+
+func getBlocks(idx []int) ([]btcmsg.Message, error) {
     inv := blockchain.GetInv(idx)
     msg := btcmsg.NewGetDataMsg()
     m := msg.(*btcmsg.Message_getdata)
     m.Inventory = inv
-
-    // Make a map of hash->bool, to be used to check if a incomming block is expected
-    record := make(map[klib.Hash256]bool)
-    for _, e := range inv {
-        record[e.Hash]= false
+    records := make(map[klib.Hash256]interface{})
+    for _, elem := range inv {
+        records[elem.Hash] = elem
     }
-    count := len(idx)
-    f := func(m btcmsg.Message) (accept bool, stop bool) {
-        accept, stop = false, false
-        bmsg, ok := m.(*btcmsg.Message_block)
-        if ok {
-            hash := bmsg.Header.Hash()
-            b, ok := record[*hash]
-            if ok { // Is expected block
-                accept = true
-                if !b { // We didn't get it before
-                    record[*hash] = true
-                    count -= 1
-                    if count <= 0 {
-                        stop = true
-                    }
+    count := len(inv)
+    for {
+        f := func(m btcmsg.Message) bool {
+            bmsg, ok := m.(*btcmsg.Message_block)
+            if ok {
+                hash := bmsg.Header.Hash()
+                v, ok := records[*hash]
+                if ok {
+                    _, ok := v.(*blockchain.InvElement)
+                    records[*hash] = m
+                    return ok
                 }
             }
+            return false
         }
-        return
+        err := kio.MsgForMsgs(m, f, count)
+        if err == nil {
+            break
+        } else {
+            invLeft := make([]*blockchain.InvElement, 0, count)
+            for _, v := range records {
+                elem, ok := v.(*blockchain.InvElement)
+                if ok {
+                    invLeft = append(invLeft, elem)
+                }
+            }
+            m.Inventory = invLeft
+            count = len(invLeft)
+            logger().Debugf("COUNT: %d", count)
+        }
     }
-    return kio.MsgForMsgs(m, f, len(inv))
+    // Assemble the result
+    var ret []btcmsg.Message
+    for _, elem := range inv {
+        m := records[elem.Hash].(btcmsg.Message)
+        ret = append(ret, m)
+    }
+    return ret, nil
 }
-
-
-
-
-
-
 

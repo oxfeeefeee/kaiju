@@ -2,14 +2,19 @@ package kdb
 
 import (
     "io"
+    "os"
     "fmt"
-    "errors"
+    "sync"
+    "encoding/binary"
 )
 
 // For value that with length of DefaultValueLen, we make a mark and do not record the length
 const DefaultValueLen = 20
 
-// The slot size is 10, in which 6 bytes is hash+flags and 4 bytes is the data pointer.
+// Internal key size
+const InternalKeySize = 6
+
+// The slot size is 10, in which 6 bytes is KeySize and 4 bytes is the data pointer.
 const SlotSize = 10
 
 // File format version number
@@ -22,15 +27,12 @@ const HeaderSize = 8
 const SlotBatchReadSize = 32
 
 // Bitcoin uses a 256 bit hash to reference a privious TX as an input, to make it compact,
-// we only use (6_bytes - 3_bits_flags) = 45 bit.
+// we only use (6_bytes - 3_bits_flags) = 45 bit as the "internal key".
 // With k slots and n keys, the expected number of collisions is n−k +k(1− 1/k)^n.
 //
-// It's expected for KDB to store thousands of txs with key collisions due to the 45bit key.
-// The solution is straightforward: iterate through all the TXs with the same key to find the right one.
-//
-// ValuChecker is provided by the user to tell if the TxOutput is what's been looking for
-type ValueChecker func(value []byte) bool
-
+// It's expected for KDB to store thousands of txs with internal key collisions due to the 
+// 45bit key.
+// The solution is storing full key when there is a internal key collision.
 type KDB struct {
     // How many entries this DB is expected to store
     capacity            uint32
@@ -42,23 +44,17 @@ type KDB struct {
     cursor              int64
     // DB statistics
     stats               *Stats
-}
-
-type Stats struct {
-    // How many slots are occupied, including slots that are marked as deleted
-    occupiedSlotCount   int64
-    // How many entries in this DB recordCount = occupiedSlotCount - slots_occupied_by_deleted_items
-    recordCount         int64
-    // How many scan operations did in total
-    scanCount           int64
-    // How many slot-read did
-    slotReadCount       int64
+    // Thread safety
+    mutex               sync.RWMutex
 }
 
 func New(capacity uint32, rws io.ReadWriteSeeker) (*KDB, error) {
     s := new(Stats)
-    db := &KDB{ capacity, 0, rws, 0, s}
-
+    db := &KDB{ 
+        capacity: capacity,
+        rws: rws,
+        stats: s,
+    }
     // Write header and init slots
     herr := db.writeHeader()
     if herr != nil {
@@ -71,41 +67,53 @@ func New(capacity uint32, rws io.ReadWriteSeeker) (*KDB, error) {
     return db, nil
 }
 
-// Add a record, KDB allows duplicated keys, i.e. one key for more than one value
+// Add a record
 func (db *KDB) AddRecord(key []byte, value []byte) error {
-    if !keyData(key).validKey() {
-        return errors.New("Invalid key format when add record to KDB")
-    }
-    // Calculate valueLoc: with which data will be found
-    valuePtr := db.cursor - db.dataBeginPos()
-    // DataLen unit is DefaultValueLen, so (valuePtr % DefaultValueLen) === 0
-    if (valuePtr % DefaultValueLen) != 0 {
-        panic("KDB.addRecord: (valuePtr % DefaultValueLen) != 0")
-    } 
-    valueLoc := uint32(valuePtr / DefaultValueLen)
-    err := db.writeValue(value)
+    kdata := toInternalKey(key)
+    collision := false
+    n, err := db.slotScan(kdata, nil, 
+        func(val []byte, mv bool) error {
+            collision = true // We hit an internal key collision 
+            logger().Debugf("Internal key collision happened")
+            var cd collisionData
+            if mv {
+                cd.fromBytes(val)
+            } else {
+                cd.firstVal = val
+            }
+            cd.add(key, value)
+            value = cd.toBytes()
+            return nil
+        })
     if err != nil {
         return err
     }
-    keyData(key).setDefaultFlags(len(value) == DefaultValueLen)
-    err = db.writeSlot(key, valueLoc)
-    // Restore the content of key
-    keyData(key).clearFlags()
-    return err
+    c := make([]byte, SlotSize, SlotSize)
+    kdata.setFlags(len(value) == DefaultValueLen)
+    copy(c[:InternalKeySize], kdata[:])
+    binary.LittleEndian.PutUint32(c[InternalKeySize:], db.dataLoc())
+    _, err = db.write(db.slotsBeginPos() + n * SlotSize, c)
+    if err != nil {
+        return err
+    }
+    return db.writeValue(value, collision)
 }
 
 // Get record value with key "k"
-func (db *KDB) GetRecord(key []byte, check ValueChecker) ([]byte, error) {
-    if !keyData(key).validKey() {
-        return nil, errors.New("Invalid key format when get record from KDB")
-    } 
+func (db *KDB) GetRecord(key []byte) ([]byte, error) {
+    kdata := toInternalKey(key)
     var value []byte
-    _, err := db.slotScan(db.getDefaultSlot(key), 
-        findRecordFunc(key, db, check, 
-            func(slotBuf []byte, offset int64, val []byte, slotNum int64) error {
+    _, err := db.slotScan(kdata, nil,
+        func(val []byte, mv bool) error {
+            if mv {
+                var cd collisionData
+                cd.fromBytes(val)
+                value = cd.get(key)
+            } else {
                 value = val
-                return nil
-            }))
+            }
+            return nil
+        })
     if err != nil {
         return nil, err
     }
@@ -113,31 +121,40 @@ func (db *KDB) GetRecord(key []byte, check ValueChecker) ([]byte, error) {
 }
 
 // Removing a record doesn't delete the value of the record in the data section
-// It only modifies the slot section in two possible ways
+// For non-internal-key-collision cases,it only modifies the slot section in two possible ways
 // - If we know the next slot is empty, we can safely mark the deleted as empty
 // - If we don't know the next slot is empty or not, we can only mark the deleted as deleted
-func (db *KDB) RemoveRecord(key[]byte, check ValueChecker) (bool, error) {
-    if !keyData(key).validKey() {
-        return false, errors.New("Invalid key format when remove record from KDB")
-    }
+// For internal-key-collision cases, we in-place change the slotData and value 
+func (db *KDB) RemoveRecord(key []byte) (bool, error) {
+    kdata := toInternalKey(key)
     found := false
-    _, err := db.slotScan(db.getDefaultSlot(key), 
-        findRecordFunc(key, db, check, 
-            func(slotBuf []byte, offset int64, val []byte, slotNum int64) error {
-                found = true
-                next := offset + SlotSize
-                if next < int64(len(slotBuf)) && keyData(slotBuf[next:]).empty() {
-                    keyData(slotBuf[offset:]).setEmpty()
+    _, err := db.slotScan(kdata, 
+        func(slotData keyData, slotNum int64, emptyFollow bool, val []byte, mv bool) error {
+            found = true
+            if mv {
+                var cd collisionData
+                cd.fromBytes(val)
+                cd.remove(key)
+                if cd.len() == 1 {
+                    val = cd.firstVal
+                    mv = false
                 } else {
-                    keyData(slotBuf[offset:]).setDeleted()
+                    val = cd.toBytes()
                 }
-                _, err := db.rws.Seek(db.slotsBeginPos() + slotNum * SlotSize, 0)
-                if err != nil {
-                    return err
+                ptr := binary.LittleEndian.Uint32(slotData[InternalKeySize:])
+                // Overwrite the old value in-place
+                return db.writeValueAt(ptr, val, mv)
+            } else {
+                //Update first byte of slot content
+                if emptyFollow {
+                    slotData.setEmpty()
+                } else {
+                    slotData.setDeleted()
                 }
-                _, err = db.rws.Write(slotBuf[offset:offset+1])
+                _, err := db.write(db.slotsBeginPos() + slotNum * SlotSize, slotData[:1])
                 return err
-            }))
+            }
+        }, nil)
     if err != nil {
         return false, err
     }
@@ -146,6 +163,13 @@ func (db *KDB) RemoveRecord(key[]byte, check ValueChecker) (bool, error) {
 
 func (db *KDB) String() string {
     return fmt.Sprintf("KDB:[capacity:%v, cursor:%v, scanCount:%v, slotReadCount:%v]",
-        db.capacity, db.cursor, db.stats.scanCount, db.stats.slotReadCount)
+        db.capacity, db.cursor, db.stats.ScanCount(), db.stats.SlotReadCount())
 }
 
+func FromFile(f *os.File) (*KDB, error) {
+    //fi, err := f.Stat()
+    //if err != nil {
+    //    return nil, nil
+    //}  
+    return nil, nil 
+}

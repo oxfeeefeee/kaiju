@@ -8,6 +8,7 @@ package kio
 
 import (
     "time"
+    "errors"
     "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/kio/btcmsg"
 )
@@ -18,6 +19,9 @@ type BroadcastInclude func (*Peer) bool
 
 // Returns (isTheMessageSwallowed, shouldWeStopExpectingMessage)
 type MsgFilter func(btcmsg.Message) (accept bool, stop bool)
+
+// Returns isTheMessageAccepted, used by  MsgForMsgs
+type MsgHandler func(btcmsg.Message) bool
 
 type KIO struct {
     pool    *Pool
@@ -66,24 +70,25 @@ func MsgForMsgBlock(id ID, m btcmsg.Message, f MsgFilter) struct{btcmsg.Message;
 
 // Send a message and expect more than one messages in return
 // i.e. getting blocks or txs
-func MsgForMsgs(m btcmsg.Message, f MsgFilter, count int) []btcmsg.Message {
+func MsgForMsgs(m btcmsg.Message, handler MsgHandler, count int) error {
     p := PeerPool()
     ids := p.AnyPeers(1, nil)
     if len(ids) == 0 {
-        return nil
+        return errors.New("Failed to find any remote peers.")
     }
     id := ids[0]
-    ch := MsgForMsg(id, m, f)
-    msgs := make([]btcmsg.Message, 0)
-    for i := 0; i < count; i++ {
-        msg := <- ch
-        if msg.Error != nil {
-            return msgs
-        } else {
-            msgs = append(msgs, msg.Message)
+    ch := MsgForMsg(id, m, 
+        func(m btcmsg.Message) (bool, bool) {
+            return handler(m), count == 0
+        })
+    for count > 0 {
+        ret := <- ch
+        if ret.Error != nil {
+            return ret.Error
         }
+        count--
     }
-    return msgs
+    return nil
 }
 
 // A faster version of MsgForMsgBlock

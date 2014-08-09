@@ -5,21 +5,20 @@ import (
     //"testing"
     "encoding/binary"
     //"encoding/hex"
-    "crypto/sha256"
+    //"crypto/sha256"
     "os"
     "testing"
     "fmt"
     "path/filepath"
     "github.com/oxfeeefeee/kaiju/klib"
-    "github.com/oxfeeefeee/kaiju/config"
+    "github.com/oxfeeefeee/kaiju"
 )
   
 func cookUint32(key uint32, value uint32)([]byte, []byte) {
-    kbuf, vbuf := make([]byte, 6, 6), make([]byte, 4, 4)
+    kbuf, vbuf := make([]byte, 7, 7), make([]byte, 4, 4)
     binary.LittleEndian.PutUint32(kbuf[:], key)
-    hash := sha256.Sum256(kbuf[0:4])
-    copy(kbuf[:], hash[0:6])
-    keyData(kbuf).clearFlags()
+    //hash := sha256.Sum256(kbuf[0:4])
+    //copy(kbuf[:], hash[0:7])
     binary.LittleEndian.PutUint32(vbuf, value)  
     return kbuf, vbuf
 }
@@ -30,15 +29,13 @@ func writeUint32(t *testing.T, db *KDB, key uint32, value uint32) {
 }
 
 func removeUint32(t *testing.T, db *KDB, key uint32, value uint32) {
-    kbuf, vbuf := cookUint32(key, value)
-    db.RemoveRecord(kbuf, func(v []byte)bool{
-        return bytes.Compare(vbuf, v) == 0 
-        })
+    kbuf, _ := cookUint32(key, value)
+    db.RemoveRecord(kbuf)
 }
 
 func testUint32(t *testing.T, db *KDB, key uint32, value uint32) {
     kbuf, vbuf := cookUint32(key, value)
-    v, getErr := db.GetRecord(kbuf, func(v []byte)bool{return bytes.Compare(vbuf, v) == 0 })
+    v, getErr := db.GetRecord(kbuf)
     if getErr != nil {
         t.Errorf(fmt.Sprintf("Failed to getRecord KDB: %s", getErr))
     }
@@ -49,7 +46,7 @@ func testUint32(t *testing.T, db *KDB, key uint32, value uint32) {
 
 func testNotUint32(t *testing.T, db *KDB, key uint32, value uint32) {
     kbuf, vbuf := cookUint32(key, value)
-    v, getErr := db.GetRecord(kbuf, func(v []byte)bool{return bytes.Compare(vbuf, v) == 0 })
+    v, getErr := db.GetRecord(kbuf)
     if getErr != nil {
         t.Errorf(fmt.Sprintf("Failed to getRecord KDB: %s", getErr))
     }
@@ -61,7 +58,8 @@ func testNotUint32(t *testing.T, db *KDB, key uint32, value uint32) {
 func TestMemoryKDB(t *testing.T) {
     buf := klib.NewMemFile(50 * 1024 * 1024)
 
-    capacity := uint32(1024 * 1024)
+    capacity := uint32(1024 * 102)
+    //capacity := uint32(20)
     db, dberr := New(capacity, buf)
     if dberr != nil {
         t.Errorf(fmt.Sprintf("Failed to create KDB: %s", dberr))
@@ -80,13 +78,13 @@ func TestMemoryKDB(t *testing.T) {
 }
 
 func TestKDB(t *testing.T) {
-    err := config.ReadJsonConfigFile()
+    err := kaiju.ReadJsonConfigFile()
     if err != nil {
         t.Errorf(fmt.Sprintf("Failed to read config file: %s", err))
     }
 
-    cfg := config.GetConfig()
-    path := filepath.Join(config.GetConfigFileDir(), cfg.TempDataDir)
+    cfg := kaiju.GetConfig()
+    path := filepath.Join(kaiju.GetConfigFileDir(), cfg.TempDataDir)
     os.MkdirAll(path, os.ModePerm)
 
     path = filepath.Join(path, "testdb.dat")
