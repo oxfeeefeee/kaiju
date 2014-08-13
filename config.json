@@ -13,5 +13,6 @@
         "209.239.118.179",
         "2.26.41.148"],
     "DataDir":"./_nogit/data/",
-    "TempDataDir": "./_nogit/kdbtemp/"
+    "TempDataDir": "./_nogit/kdbtemp/",
+    "LogFileName":"KaijuLog.txt"
 }

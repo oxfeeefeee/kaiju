@@ -23,6 +23,7 @@ _testmain.go
 
 *.exe
 *.test
+*.txt
 
 main/main
 kaiju

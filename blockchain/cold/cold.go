@@ -2,63 +2,122 @@
 package cold
 
 import (
-    "errors"
+    "os"
+    "path/filepath"
     "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma"
+    "github.com/oxfeeefeee/kaiju/klib/kdb"
 )
 
 const headersFileName = "header.dat"
 
 const kdbFileName = "kdb.dat"
 
-var bcFiles *files
+var cold Cold
 
-var theHeaders *headers
-
-var theOutputDB *outputDB
-
-type Headers interface {
+type HeaderArray interface {
     Len() int
     Get(height int) *catma.Header
     Append(hs []*catma.Header) error 
     GetLocator() []*klib.Hash256
 }
 
-func Init() error {
-    if bcFiles != nil || theHeaders != nil || theOutputDB != nil {
-        errors.New("Init seems to be called before")
-    }
-    bcFiles, err := newFiles(headersFileName, kdbFileName)
+type UtxoDB interface {
+    catma.UtxoSet
+    Commit(tag uint32) error
+    Tag() (uint32, error)
+}
+
+type Cold struct {
+    hfile   *os.File
+    dbFile  *os.File
+    h       *headers
+    db      *outputDB
+}
+
+func Get() *Cold {
+    return &cold
+}
+
+func (c *Cold) Init() error {
+    path, err := initFilePath()
     if err != nil {
         return err
     }
-    theHeaders = newHeaders(bcFiles.headerFile())
-    theHeaders.loadHeaders()
-    theOutputDB, err = newOutputDB(bcFiles.kdbFile())
+
+    f, _, err := openFile(path, headersFileName)
     if err != nil {
         return err
     }
+    c.hfile = f
+    c.h = newHeaders(f)
+    c.h.loadHeaders()
+
+    f, fi, err := openFile(path, kdbFileName)
+    if err != nil {
+        return err
+    }
+    var db *kdb.KDB
+    if fi.Size() == 0 {
+        db, err = kdb.New(kaiju.KDBCapacity, f)
+        if err != nil {
+            return err
+        }
+    } else {
+        db, err = kdb.Load(f)
+        if err != nil {
+            return err
+        }
+    }
+    c.dbFile = f
+    c.db = newOutputDB(db)
     return nil
 }
 
-func Destroy() error {
-    err := bcFiles.close()
-    if err != nil {
+func (c *Cold) Destroy() error {
+    if err := c.hfile.Close(); err != nil {
         return err
     }
-    theHeaders = nil
-    theOutputDB = nil
-    bcFiles = nil
+    if err := c.dbFile.Close(); err != nil {
+        return err
+    }
+    c.hfile = nil
+    c.dbFile = nil
+    c.h = nil
+    c.db = nil
     return nil
 }
 
-func TheHeaders() Headers {
-    return theHeaders
+func (c *Cold) Headers() HeaderArray {
+    return c.h
 }
 
-func TheOutputDB() catma.UtxoSet {
-    return theOutputDB
+func (c *Cold) OutputDB() UtxoDB {
+    return c.db
+}
+
+func initFilePath() (string ,error) {
+    cfg := kaiju.GetConfig()
+    path := filepath.Join(kaiju.GetConfigFileDir(), cfg.DataDir)
+    if err := os.MkdirAll(path, os.ModePerm); err != nil {
+        return "", err
+    } else {
+        return path, nil
+    }
+}
+
+func openFile(path string, name string) (*os.File, os.FileInfo, error) {
+    fullp := filepath.Join(path, name)
+    f, err := os.OpenFile(fullp, os.O_RDWR|os.O_CREATE, os.ModePerm)
+    if err != nil {
+        return nil, nil, err
+    }
+    if fi, err := f.Stat(); err != nil {
+        return nil, nil, err
+    } else {
+        return f, fi, err
+    }
 }
 
 // Handy function

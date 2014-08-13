@@ -2,11 +2,7 @@
 package main
 
 import (
-    "time"
-    "runtime"
-    "math/rand"
     "github.com/oxfeeefeee/kaiju"
-    "github.com/oxfeeefeee/kaiju/profiling"
     "github.com/oxfeeefeee/kaiju/kio"
     "github.com/oxfeeefeee/kaiju/node"
 )
@@ -21,39 +17,32 @@ func mainCleanUp(){
 
 func mainFunc() {
     c := make(chan struct{})
-    defer func() {
+    /*defer func() {
         if r := recover(); r != nil {
             logger().Printf("Main func paniced:", r)
             logger().Printf("Exiting ...")
             close(c)
         }
-    }()
+    }()*/
 
-    runtime.GOMAXPROCS(runtime.NumCPU())
-    
-    profiling.RunProfiler()
-
-    rand.Seed(time.Now().UTC().UnixNano())
-
-    err := kaiju.ReadJsonConfigFile()
+    err := kaiju.Init()
     if err != nil {
-        logger().Printf("Failed to ready config file: %s", err.Error())
         return;
     }
 
-    kaiju.MainLogger().Printf("Starting KIO...")
+    logger().Printf("Starting KIO...")
     <- kio.Start(10)
-    kaiju.MainLogger().Printf("KIO initialized.")
+    logger().Printf("KIO initialized.")
 
-    kaiju.MainLogger().Printf("Initializing Node...")
+    logger().Printf("Initializing Node...")
     err = node.Init()
     if err != nil {
         logger().Printf("Error initializing Node: %s", err.Error())
         return;
     }
-    kaiju.MainLogger().Printf("Starting Node...")
+    logger().Printf("Starting Node...")
     node.Start()
-    kaiju.MainLogger().Printf("Node started.")
+    logger().Printf("Node started.")
 
     // Don't quit
     _ = <- c

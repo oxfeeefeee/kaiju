@@ -20,7 +20,6 @@ type collisionData struct {
 
 func (d *collisionData) get(key []byte) []byte {
     for _, kv := range d.otherKV {
-        //logger().Debugf("kv %v", kv)
         result := bytes.Compare(key, kv[0])
         if result == 0 {
             return kv[1]

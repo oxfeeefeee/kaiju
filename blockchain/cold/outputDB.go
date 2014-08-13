@@ -1,10 +1,8 @@
 package cold
 
 import (
-    "os"
     "bytes"
     "errors"
-    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/klib/kdb"
 )
@@ -14,22 +12,18 @@ type outputDB struct {
     db  *kdb.KDB
 }
 
-func newOutputDB(f *os.File) (*outputDB, error) {
-    db, err := kdb.New(kaiju.KDBCapacity, f)
-    if err != nil {
-        return nil, err
-    }
-    return &outputDB{db,}, nil
+func newOutputDB(db *kdb.KDB) *outputDB {
+    return &outputDB{db,}
 }
 
 func (u *outputDB) Get(h *klib.Hash256, i uint32) ([]byte, error) {
     key := getKdbKey(h, i)
-    return u.db.GetRecord(key)
+    return u.db.Get(key)
 }
 
 func (u *outputDB) Use(h *klib.Hash256, i uint32, val []byte) error {
     key := getKdbKey(h, i)
-    v, err := u.db.GetRecord(key)
+    v, err := u.db.Get(key)
     if err != nil {
         return err
     }
@@ -39,13 +33,21 @@ func (u *outputDB) Use(h *klib.Hash256, i uint32, val []byte) error {
             return errors.New("outputDB.UseOutput value doesn't match value in DB")
         }
     }
-    _, err = u.db.RemoveRecord(key)
+    _, err = u.db.Remove(key)
     return err
 }
 
 func (u *outputDB) Add(h *klib.Hash256, i uint32, val []byte) error {
     key := getKdbKey(h, i)
-    return u.db.AddRecord(key, val)
+    return u.db.Add(key, val)
+}
+
+func (u *outputDB) Commit(tag uint32) error {
+    return u.db.Commit(tag)
+}
+
+func (u *outputDB) Tag() (uint32, error) {
+    return u.db.Tag()
 }
 
 func getKdbKey(h *klib.Hash256, i uint32) []byte {

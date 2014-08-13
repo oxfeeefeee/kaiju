@@ -59,3 +59,7 @@ func (f *MemFile) Write(p []byte) (n int, err error) {
         return bl, nil
     }
 }
+
+func (f *MemFile) Sync() (err error) {
+    return nil
+}

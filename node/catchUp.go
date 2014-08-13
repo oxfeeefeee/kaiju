@@ -21,19 +21,34 @@ func catchUp() {
     for !headerUpToDate() {
         moreHeaders()
     }
-
-    moreBlocks()
+    total := cold.Get().Headers().Len()
+    db := cold.Get().OutputDB()
+    tag, err := db.Tag()
+    if err != nil {
+        logger().Printf("Error reading OutputDB tag: %s", err)
+        return
+    }
+    start := int(tag) + 1
+    step := 10000
+    if start > 70000 {
+        step = 1000
+    }
+    for i := start; i < total; {
+        end := i + step
+        moreBlocks(i, end)
+        i = end
+    }
 }
 
 // Returns if we should stop catching up
 func headerUpToDate() bool {
-    headers := cold.TheHeaders()
+    headers := cold.Get().Headers()
     h := headers.Get(headers.Len() - 1)
     return h.Time().Add(time.Hour * 2).After(time.Now())
 }
 
 func moreHeaders() {
-    headers := cold.TheHeaders()
+    headers := cold.Get().Headers()
     l := headers.GetLocator()
     msg := btcmsg.NewGetHeadersMsg()
     mg := msg.(*btcmsg.Message_getheaders)
@@ -55,28 +70,37 @@ func moreHeaders() {
     }
 }
 
-func moreBlocks() bool {
+func moreBlocks(start int, end int) bool {
     idx := make([]int, 0)
-    for i := 1; i <= 20000; i++ {
+    for i := start; i < end; i++ {
         idx = append(idx, i)
     }
     blocks, err := getBlocks(idx)
     if err != nil {
         logger().Debugf("getBlocks error %s", err)
+        return false
     }
     logger().Debugf("Got %d blocks\n", len(blocks))
-    processBlocks(blocks)
+    processBlocks(blocks, start)
+    t := uint32(end - 1)
+    db := cold.Get().OutputDB()
+    if err := db.Commit(t); err != nil {
+        logger().Printf("Error OutputDB commit: %s", err)
+        return false
+    }
+    logger().Debugf("Commited blocks to %d\n", t)
     return true
 }
 
-func processBlocks(bmsgs []btcmsg.Message) {
-    db := cold.TheOutputDB()
+func processBlocks(bmsgs []btcmsg.Message, startIndex int) {
+    db := cold.Get().OutputDB()
     for _, m := range bmsgs {
         bm, _ := m.(*btcmsg.Message_block)
         for _, tx := range bm.Txs {
-            err := catma.VerifyTx((*catma.Tx)(tx), db, true, false)
+            ctx := (*catma.Tx)(tx)
+            err := catma.VerifyTx(ctx, db, true, false)
             if err != nil {
-                logger().Printf("Process block error: %s", err)
+                logger().Printf("Process tx %s error: %s", ctx.Hash(), err)
             }
         }
     }
@@ -119,7 +143,7 @@ func getBlocks(idx []int) ([]btcmsg.Message, error) {
             }
             m.Inventory = invLeft
             count = len(invLeft)
-            logger().Debugf("COUNT: %d", count)
+            logger().Debugf("Count left: %d", count)
         }
     }
     // Assemble the result

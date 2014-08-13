@@ -18,17 +18,17 @@ type InvElement struct {
 
 // Initialize blockchain subsystem
 func Init() error {
-    return cold.Init()
+    return cold.Get().Init()
 }
 
 // Destroy blockchain subsystem
 func Destroy() error {
-    return cold.Destroy()
+    return cold.Get().Destroy()
 }
 
 // Get an array of InvElement to make a "getdata" message
 func GetInv(heights []int) []*InvElement {
-    headers := cold.TheHeaders()
+    headers := cold.Get().Headers()
     inv := make([]*InvElement, 0)
     for _, h := range heights {
         header := headers.Get(h)

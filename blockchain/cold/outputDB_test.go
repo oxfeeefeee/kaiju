@@ -7,9 +7,9 @@ import (
 )
 
 func TestOutputDB(t *testing.T) {
-    err := kaiju.ReadJsonConfigFile()
+    err := kaiju.Init()
     if err != nil {
-        t.Errorf(fmt.Sprintf("Failed to read config file: %s", err))
+        t.Errorf(fmt.Sprintf("Failed to call kaiju.Init: %s", err))
     }
 
     fs, err := newFiles(headersFileName, kdbFileName)

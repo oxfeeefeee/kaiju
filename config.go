@@ -13,6 +13,7 @@ type Config struct {
     SeedPeers       []string
     DataDir         string
     TempDataDir     string
+    LogFileName     string
 }
 
 var cfg             *Config
@@ -33,14 +34,6 @@ func GetConfigFileDir() string {
 func ReadJsonConfigFile() error {
     if cfg != nil {
         return nil
-    }
-
-    // Print working directory
-    wd, wderr := os.Getwd()
-    if wderr == nil {
-        MainLogger().Printf("Working directory: %s", wd)
-    } else {
-        return wderr
     }
 
     // Search up for config.json
