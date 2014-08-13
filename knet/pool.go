@@ -1,12 +1,12 @@
-// Pool manages all remote bitcoin nodes, represented by kio.Peer's
-package kio
+// Pool manages all remote bitcoin nodes, represented by knet.Peer's
+package knet
 
 import (
     "time"
     "sync"
     "errors"
     "math/rand"
-    "github.com/oxfeeefeee/kaiju/kio/btcmsg"
+    "github.com/oxfeeefeee/kaiju/knet/btcmsg"
     )
 
 type Pool struct {

@@ -1,13 +1,13 @@
 // Remote bitcoin network peer/node
 
-package kio
+package knet
 
 import (
     "net"
     "sync"
     "time"
     "errors"
-    "github.com/oxfeeefeee/kaiju/kio/btcmsg"
+    "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
 const SendQueueSize = 2
@@ -220,7 +220,7 @@ func (p *Peer) handleMessage(msg btcmsg.Message) bool {
 // 2. Expect the remote peer send it's version message
 // 3. Once the message from remote peer is received, send verack
 // 4. Send out my version message, if outgoing == false
-// 5. Done, kio.Peer starts to work
+// 5. Done, knet.Peer starts to work
 func (p *Peer) versionHankshake() error {
     // Step 1
     if p.outgoing {

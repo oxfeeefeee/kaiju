@@ -1,8 +1,8 @@
-package kio
+package knet
 
 import (
     "sync"
-    "github.com/oxfeeefeee/kaiju/kio/btcmsg"
+    "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
 // Monitors the activities of each peer

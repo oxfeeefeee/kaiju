@@ -1,9 +1,9 @@
-package kio
+package knet
 
 import (
     "sync"
     "container/list"
-    "github.com/oxfeeefeee/kaiju/kio/btcmsg"
+    "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
 const maxTriesToConnectPeer = 3

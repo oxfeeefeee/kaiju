@@ -10,8 +10,8 @@ package node
 import (
     "time"
     "github.com/oxfeeefeee/kaiju/klib"
-    "github.com/oxfeeefeee/kaiju/kio"
-    "github.com/oxfeeefeee/kaiju/kio/btcmsg"
+    "github.com/oxfeeefeee/kaiju/knet"
+    "github.com/oxfeeefeee/kaiju/knet/btcmsg"
     "github.com/oxfeeefeee/kaiju/catma"
     "github.com/oxfeeefeee/kaiju/blockchain"
     "github.com/oxfeeefeee/kaiju/blockchain/cold"
@@ -60,7 +60,7 @@ func moreHeaders() {
         return ok, true
     }
 
-    mh := kio.ParalMsgForMsg(mg, f, 3)
+    mh := knet.ParalMsgForMsg(mg, f, 3)
     if mh != nil {
         h, _ := mh.(*btcmsg.Message_headers)
         err := headers.Append(h.Headers)
@@ -130,7 +130,7 @@ func getBlocks(idx []int) ([]btcmsg.Message, error) {
             }
             return false
         }
-        err := kio.MsgForMsgs(m, f, count)
+        err := knet.MsgForMsgs(m, f, count)
         if err == nil {
             break
         } else {

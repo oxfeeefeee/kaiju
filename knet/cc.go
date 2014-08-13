@@ -1,12 +1,12 @@
 // CC for Crowd Control as in CCP Games. CC decides if we connect to a specific remote peer or not
-package kio
+package knet
 
 import (
     "net"
     "time"
     "math"
     "github.com/oxfeeefeee/kaiju"
-    "github.com/oxfeeefeee/kaiju/kio/btcmsg"
+    "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
 type CC struct {

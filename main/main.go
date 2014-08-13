@@ -3,7 +3,7 @@ package main
 
 import (
     "github.com/oxfeeefeee/kaiju"
-    "github.com/oxfeeefeee/kaiju/kio"
+    "github.com/oxfeeefeee/kaiju/knet"
     "github.com/oxfeeefeee/kaiju/node"
 )
 
@@ -30,9 +30,9 @@ func mainFunc() {
         return;
     }
 
-    logger().Printf("Starting KIO...")
-    <- kio.Start(10)
-    logger().Printf("KIO initialized.")
+    logger().Printf("Starting KNet...")
+    <- knet.Start(10)
+    logger().Printf("KNet initialized.")
 
     logger().Printf("Initializing Node...")
     err = node.Init()

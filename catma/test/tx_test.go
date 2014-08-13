@@ -6,7 +6,7 @@ import (
     "encoding/json"
     "encoding/hex"
     "github.com/oxfeeefeee/kaiju/klib"
-    "github.com/oxfeeefeee/kaiju/kio/btcmsg"
+    "github.com/oxfeeefeee/kaiju/knet/btcmsg"
     "github.com/oxfeeefeee/kaiju/catma"
     "github.com/oxfeeefeee/kaiju/catma/script"
     "fmt"

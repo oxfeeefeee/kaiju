@@ -1,16 +1,16 @@
-// KIO stands for Kaiju IO. 
+// KNet stands for Kaiju Networking. 
 //
-// KIO is responsible for interacting with other bitcoin nodes,
+// KNet is responsible for interacting with other bitcoin nodes,
 // send and receive bitcoin protocol messages.
-// KIO can be considered as an communication interface for the "ledger" and "catchUp" module
+// KNet can be considered as an communication interface for the "ledger" and "catchUp" module
 // to communicate with the rest of the network
-package kio
+package knet
 
 import (
     "time"
     "errors"
     "github.com/oxfeeefeee/kaiju"
-    "github.com/oxfeeefeee/kaiju/kio/btcmsg"
+    "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
 const defalutSendMsgTimeout = time.Second * 10
@@ -23,15 +23,15 @@ type MsgFilter func(btcmsg.Message) (accept bool, stop bool)
 // Returns isTheMessageAccepted, used by  MsgForMsgs
 type MsgHandler func(btcmsg.Message) bool
 
-type KIO struct {
+type KNet struct {
     pool    *Pool
     cc      *CC
     idmgr   *idManager
 }
 
-var instance *KIO
+var instance *KNet
 
-// Start KIO module, should be called before any other calls in kio
+// Start KNet module, should be called before any other calls in knet
 func Start(count int) <-chan struct{} {
     if instance != nil {
         panic("Start should only be called once")
@@ -39,7 +39,7 @@ func Start(count int) <-chan struct{} {
     idm := newIDManager()
     p := newPool(idm)
     cc := newCC(idm)
-    instance = &KIO{p, cc, idm}
+    instance = &KNet{p, cc, idm}
     seeds := kaiju.GetConfig().SeedPeers
     for _, ip := range seeds {
         instance.cc.addSeedAddr(ip, kaiju.ListenPort)
@@ -118,7 +118,7 @@ func ParalMsgForMsg(m btcmsg.Message, f MsgFilter, paral int) btcmsg.Message {
     return nil
 }
 
-// Other modules can interact with kio via peer.Pool
+// Other modules can interact with knet via peer.Pool
 func PeerPool() *Pool {
     return instance.pool
 }

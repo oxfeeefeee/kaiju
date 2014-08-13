@@ -1,4 +1,4 @@
-// package "node" manages bitcoin node behavior, it uses kio, kdb and blockchain to:
+// package "node" manages bitcoin node behavior, it uses knet, kdb and blockchain to:
 // - Download, process and save historical bitcoin block data
 // - Interact with other nodes in the bitcoin network to work as a full node
 package node 
