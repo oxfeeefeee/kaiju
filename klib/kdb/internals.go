@@ -50,9 +50,9 @@ func (db *KDB) slotScan(key []byte, hi handleItem, hv handleValue) (int64, error
             } else if slotData.deleted() {
                 continue
             }
-            Key0, skey0 := keyData(key).clearFlags(), slotData.clearFlags()
+            key0, skey0 := keyData(key).clearFlags(), slotData.clearFlags()
             result := bytes.Compare(key, slotData[:InternalKeySize])
-            key[0], slotData[0] = Key0, skey0
+            key[0], slotData[0] = key0, skey0
             if result == 0 {
                 // A match is found, read the value
                 defaultLen := keyData(slotData).defaultLenVaule()

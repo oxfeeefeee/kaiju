@@ -6,7 +6,7 @@ type Message_getblocks Message_getheaders
 
 func NewGetBlocksMsg() Message {
     var msg Message = NewGetHeadersMsg()
-    return msg.(*Message_getblocks)
+    return (*Message_getblocks)(msg.(*Message_getheaders))
 }
 
 func (m *Message_getblocks) Command() string {
@@ -14,11 +14,11 @@ func (m *Message_getblocks) Command() string {
 }
 
 func (m *Message_getblocks) Encode() ([]byte, error) {
-    var msg Message = m
-    return msg.(*Message_getheaders).Encode()
+    msg := (*Message_getheaders)(m)
+    return msg.Encode()
 }
 
 func (m *Message_getblocks) Decode(payload []byte) error {
-    var msg Message = m
-    return msg.(*Message_getheaders).Decode(payload)
+    msg := (*Message_getheaders)(m)
+    return msg.Decode(payload)
 }

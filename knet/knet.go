@@ -13,7 +13,7 @@ import (
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
-const defalutSendMsgTimeout = time.Second * 10
+const defalutSendMsgTimeout = time.Second * 20
 
 type BroadcastInclude func (*Peer) bool
 
@@ -51,9 +51,9 @@ func Start(count int) <-chan struct{} {
 // Send a message and expect another message in response. e.g. [getheaders -> headers].
 // This is a non-blocking call.
 func MsgForMsg(id ID, m btcmsg.Message, f MsgFilter) <-chan struct{btcmsg.Message; Error error} {
-    p := PeerPool()
-    p.SendMsg(id, m, 0)
-    return p.ExpectMsg(id, f, 0)
+    ch := make(chan struct{btcmsg.Message; Error error})
+    go func() { ch <- MsgForMsgBlock(id, m, f) } ()
+    return ch
 }
 
 // Send a message and expect another message in response. e.g. [getheaders -> headers].
@@ -77,10 +77,11 @@ func MsgForMsgs(m btcmsg.Message, handler MsgHandler, count int) error {
         return errors.New("Failed to find any remote peers.")
     }
     id := ids[0]
-    ch := MsgForMsg(id, m, 
+    p.SendMsg(id, m, 0)
+    ch := p.ExpectMsg(id,
         func(m btcmsg.Message) (bool, bool) {
             return handler(m), count == 0
-        })
+        }, 0)
     for count > 0 {
         ret := <- ch
         if ret.Error != nil {

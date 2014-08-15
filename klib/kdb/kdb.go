@@ -28,7 +28,7 @@ const endCommitTagPos = 12
 const savedCursorPos = 16
 
 // The size of space reserved for write-aheader data
-const WADataSize = 1024 * 1024 * 8
+const WADataSize = 1024 * 1024 * 80
 
 // How many slot we read at one time
 const SlotBatchReadSize = 32
@@ -99,6 +99,9 @@ func Load(s Storage) (*KDB, error) {
             return nil, err
         }
         if err := db.commitWAData(); err != nil {
+            return nil, err
+        }
+        if err := db.endWACommit(bct); err != nil {
             return nil, err
         }
     }

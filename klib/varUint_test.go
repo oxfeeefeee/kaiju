@@ -6,7 +6,7 @@ import (
 )
 
 func encodeAndDecodeVarUnit(t *testing.T, v uint64) {
-    logger().Debugf("Testing VarUint %v ...", v)
+    t.Logf("Testing VarUint %v ...", v)
     buf := new(bytes.Buffer)
     var err error;
     vi := VarUint(v)
@@ -14,7 +14,7 @@ func encodeAndDecodeVarUnit(t *testing.T, v uint64) {
     if err != nil {
         t.Errorf("Encode error : %s", err.Error())
     }
-    logger().Debugf("Encoded: %v", buf.Bytes())
+    t.Logf("Encoded: %v", buf.Bytes())
     err = vi.Deserialize(buf)
     if err != nil {
         t.Errorf("Decode error : %s", err.Error())

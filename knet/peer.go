@@ -148,11 +148,11 @@ func (p *Peer) loopSendMsg() {
     for running {
         select {
         case m := <-p.sendChan:
-            // "c" is used do timeout 
-            c := make(chan error, 1)
-            go func() { c <- btcmsg.WriteMsg(p.conn, m.msg) } ()
+            // "ch" is used do timeout 
+            ch := make(chan error, 1)
+            go func() { ch <- btcmsg.WriteMsg(p.conn, m.msg) } ()
             select {
-            case err := <-c:
+            case err := <-ch:
                 if m.errChan != nil {
                     m.errChan <- err
                 }
@@ -160,13 +160,20 @@ func (p *Peer) loopSendMsg() {
                     running = false
                 } 
             case <-time.After(m.timeout):
-                m.errChan <- errors.New("Peer send message timeout.")
+                if m.errChan != nil {
+                    m.errChan <- errors.New("Peer send message timeout.")
+                }
+                if m.timeout >= defalutSendMsgTimeout {
+                    running = false
+                }
+            case <-p.done:
+                running = false
             }
         case <-p.done:
             running = false
         }
     }
-    logger().Debugf("PEER SEND exit")
+    logger().Debugf("               PEER SEND exit %d", p.myID)
     p.cleanUp()
 }
 
@@ -174,7 +181,7 @@ func (p *Peer) loopReceiveMsg() {
     for {
         msg, err := btcmsg.ReadMsg(p.conn) 
         if err != nil {
-            logger().Printf("loopReceiveMsg error: %s", err.Error())
+            //logger().Printf("loopReceiveMsg error: %s", err.Error())
             break
         } else {
             if !p.handleMessage(msg) {
@@ -182,7 +189,7 @@ func (p *Peer) loopReceiveMsg() {
             }
         }
     }
-    logger().Debugf("PEER RECEIVE exit")
+    logger().Debugf("               PEER RECEIVE exit %d", p.myID)
     p.cleanUp()
 }
 
@@ -194,7 +201,7 @@ func (p *Peer) handleMessage(msg btcmsg.Message) bool {
         ping := msg.(*btcmsg.Message_ping)
         pong := btcmsg.NewPongMsg().(*btcmsg.Message_pong)
         pong.Nonce = ping.Nonce
-        p.sendMsg(&msgSent{pong, 0, nil})
+        p.sendMsg(&msgSent{pong, defalutSendMsgTimeout, nil})
         return true
     default:
         p.expMutex.Lock()

@@ -6,7 +6,7 @@ type Message_notfound Message_inv
 
 func NewNotFoundMsg() Message {
     var msg Message = NewInvMsg()
-    return msg.(*Message_notfound)
+    return (*Message_notfound)(msg.(*Message_inv))
 }
 
 func (m *Message_notfound) Command() string {
@@ -14,11 +14,11 @@ func (m *Message_notfound) Command() string {
 }
 
 func (m *Message_notfound) Encode() ([]byte, error) {
-    var msg Message = m
-    return msg.(*Message_inv).Encode()
+    msg := (*Message_inv)(m)
+    return msg.Encode()
 }
 
 func (m *Message_notfound) Decode(payload []byte) error {
-    var msg Message = m
-    return msg.(*Message_inv).Decode(payload)
+    msg := (*Message_inv)(m)
+    return msg.Decode(payload)
 }

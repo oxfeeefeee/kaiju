@@ -30,12 +30,20 @@ func catchUp() {
     }
     start := int(tag) + 1
     step := 10000
-    if start > 70000 {
-        step = 1000
-    }
     for i := start; i < total; {
+        if i > 110000 {
+            step = 1000
+        }
+        if i > 170000 {
+            step = 100
+        }
         end := i + step
-        moreBlocks(i, end)
+        if ok := moreBlocks(i, end); !ok {
+            logger().Printf("--------------------------")
+            logger().Printf("--------------------------")
+            logger().Printf("--------------------------")
+            break
+        }
         i = end
     }
 }
@@ -75,13 +83,17 @@ func moreBlocks(start int, end int) bool {
     for i := start; i < end; i++ {
         idx = append(idx, i)
     }
+    logger().Debugf("Start getting from %d to %d", start, end)
     blocks, err := getBlocks(idx)
     if err != nil {
         logger().Debugf("getBlocks error %s", err)
         return false
     }
     logger().Debugf("Got %d blocks\n", len(blocks))
-    processBlocks(blocks, start)
+    
+    if ok := processBlocks(blocks, start); !ok {
+        return false
+    }
     t := uint32(end - 1)
     db := cold.Get().OutputDB()
     if err := db.Commit(t); err != nil {
@@ -92,7 +104,7 @@ func moreBlocks(start int, end int) bool {
     return true
 }
 
-func processBlocks(bmsgs []btcmsg.Message, startIndex int) {
+func processBlocks(bmsgs []btcmsg.Message, startIndex int) bool {
     db := cold.Get().OutputDB()
     for _, m := range bmsgs {
         bm, _ := m.(*btcmsg.Message_block)
@@ -101,9 +113,11 @@ func processBlocks(bmsgs []btcmsg.Message, startIndex int) {
             err := catma.VerifyTx(ctx, db, true, false)
             if err != nil {
                 logger().Printf("Process tx %s error: %s", ctx.Hash(), err)
+                return false
             }
         }
     }
+    return true
 }
 
 func getBlocks(idx []int) ([]btcmsg.Message, error) {
@@ -143,7 +157,7 @@ func getBlocks(idx []int) ([]btcmsg.Message, error) {
             }
             m.Inventory = invLeft
             count = len(invLeft)
-            logger().Debugf("Count left: %d", count)
+            logger().Debugf("Count left: %d; error: %s", count, err)
         }
     }
     // Assemble the result

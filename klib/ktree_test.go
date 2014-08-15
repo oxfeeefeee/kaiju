@@ -1,7 +1,6 @@
 package klib
 
 import (
-    "fmt"
     "testing"
 )
 
@@ -10,7 +9,7 @@ func AddChild(t *testing.T, tree *KTree, depth int, index int, v interface{}) {
     if err != nil {
         t.Errorf("err: %s", err)
     }
-    fmt.Printf("tree:\n%s", tree)
+    t.Logf("tree:\n%s", tree)
 }
 
 func TestKTree(t *testing.T) {
@@ -33,5 +32,5 @@ func TestKTree(t *testing.T) {
     //AddChild(t, tree, 2, 6, 35)
     
     tree.Remove(1, 1)
-    fmt.Printf("tree:\n%s", tree)
+    t.Logf("tree:\n%s", tree)
 }

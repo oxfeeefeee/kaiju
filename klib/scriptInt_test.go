@@ -6,7 +6,7 @@ import (
 )
 
 func encodeAndDecodeScriptInt(t *testing.T, v int64) {
-    logger().Debugf("Testing ScriptInt %v ...", v)
+    t.Logf("Testing ScriptInt %v ...", v)
     
     var i ScriptInt
     i = ScriptInt(v)

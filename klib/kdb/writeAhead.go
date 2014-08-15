@@ -5,6 +5,7 @@ import (
     "errors"
     "encoding/gob"
     "encoding/binary"
+    "github.com/oxfeeefeee/kaiju/klib"
     )
 
 // Write-ahead data, 
@@ -45,7 +46,8 @@ func (db *KDB) saveWAData() error {
     if _, err := db.storage.Seek(HeaderSize, 0); err != nil {
         return err
     }
-    if err := db.wa.save(db.storage); err != nil {
+    lw := klib.NewLWriter(db.storage, WADataSize)
+    if err := db.wa.save(lw); err != nil {
         return err
     }
     return db.storage.Sync()
