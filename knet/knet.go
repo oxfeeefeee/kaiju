@@ -7,18 +7,13 @@
 package knet
 
 import (
-    "time"
     "errors"
     "github.com/oxfeeefeee/kaiju"
+    "github.com/oxfeeefeee/kaiju/knet/peer"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
-const defalutSendMsgTimeout = time.Second * 20
-
-type BroadcastInclude func (*Peer) bool
-
-// Returns (isTheMessageSwallowed, shouldWeStopExpectingMessage)
-type MsgFilter func(btcmsg.Message) (accept bool, stop bool)
+type BroadcastInclude func (*peer.Peer) bool
 
 // Returns isTheMessageAccepted, used by  MsgForMsgs
 type MsgHandler func(btcmsg.Message) bool
@@ -44,13 +39,13 @@ func Start(count int) <-chan struct{} {
     for _, ip := range seeds {
         instance.cc.addSeedAddr(ip, kaiju.ListenPort)
     }
-    instance.cc.start([]Monitor{instance.pool, instance.cc})
+    instance.cc.start([]peer.Monitor{instance.pool, instance.cc})
     return p.waitPeers(count)
 }
 
 // Send a message and expect another message in response. e.g. [getheaders -> headers].
 // This is a non-blocking call.
-func MsgForMsg(id ID, m btcmsg.Message, f MsgFilter) <-chan struct{btcmsg.Message; Error error} {
+func MsgForMsg(id peer.ID, m btcmsg.Message, f peer.MsgFilter) <-chan struct{btcmsg.Message; Error error} {
     ch := make(chan struct{btcmsg.Message; Error error})
     go func() { ch <- MsgForMsgBlock(id, m, f) } ()
     return ch
@@ -58,7 +53,7 @@ func MsgForMsg(id ID, m btcmsg.Message, f MsgFilter) <-chan struct{btcmsg.Messag
 
 // Send a message and expect another message in response. e.g. [getheaders -> headers].
 // This is a blocking call.
-func MsgForMsgBlock(id ID, m btcmsg.Message, f MsgFilter) struct{btcmsg.Message; Error error} {
+func MsgForMsgBlock(id peer.ID, m btcmsg.Message, f peer.MsgFilter) struct{btcmsg.Message; Error error} {
     p := PeerPool()
     err := <- p.SendMsg(id, m, 0)
     if err != nil {
@@ -95,7 +90,7 @@ func MsgForMsgs(m btcmsg.Message, handler MsgHandler, count int) error {
 // A faster version of MsgForMsgBlock
 // Similar to http://blog.golang.org/go-concurrency-patterns-timing-out-and
 // try more and get the fastest one 
-func ParalMsgForMsg(m btcmsg.Message, f MsgFilter, paral int) btcmsg.Message {
+func ParalMsgForMsg(m btcmsg.Message, f peer.MsgFilter, paral int) btcmsg.Message {
     p := PeerPool()
     ids := p.AnyPeers(paral, nil)
     ch := make(chan struct{btcmsg.Message; Error error}, paral)

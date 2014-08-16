@@ -6,6 +6,7 @@ import (
     "time"
     "math"
     "github.com/oxfeeefeee/kaiju"
+    "github.com/oxfeeefeee/kaiju/knet/peer"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
@@ -33,7 +34,7 @@ func (cc *CC) addSeedAddr(ipstr string, port int) {
     cc.ap.addAddr(true, peerInfo, 0, 0)
 }
 
-func (cc *CC) start(peerMonitors []Monitor) {
+func (cc *CC) start(peerMonitors []peer.Monitor) {
     go func() {
         for {
             // Flow control for dial:
@@ -44,26 +45,26 @@ func (cc *CC) start(peerMonitors []Monitor) {
     }()
 }
 
-// Member of Monitor interface
-func (cc *CC) listenTypes() []string {
+// Member of peer.Monitor interface
+func (cc *CC) ListenTypes() []string {
     return []string{"addr",}
 }
 
-// Member of Monitor interface
-func (cc *CC) onPeerUp(p *Peer) {
+// Member of peer.Monitor interface
+func (cc *CC) OnPeerUp(p *peer.Peer) {
     // Do nothing
 }
 
-// Member of Monitor interface
-func (cc *CC) onPeerDown(p *Peer) {
+// Member of peer.Monitor interface
+func (cc *CC) OnPeerDown(p *peer.Peer) {
     // Put it back to the address list
     now := time.Now().Unix()
-    p.info.Time = uint32(now) // Update last available time to "now"
-    cc.ap.addAddr(true, p.info, 1, now)
+    p.BtcInfo().Time = uint32(now) // Update last available time to "now"
+    cc.ap.addAddr(true, p.BtcInfo(), 1, now)
 }
 
-// Member of Monitor interface
-func (cc *CC) onPeerMsg(id ID, msg btcmsg.Message) {
+// Member of peer.Monitor interface
+func (cc *CC) OnPeerMsg(id peer.ID, msg btcmsg.Message) {
     // TODO: addAddr is very slow, gorountine is a workaround for that
     go func (){
         addrMsg := msg.(*btcmsg.Message_addr)
@@ -74,8 +75,8 @@ func (cc *CC) onPeerMsg(id ID, msg btcmsg.Message) {
     //cc.ap.dump()
 }
 
-func (cc *CC) doConnect(peerMonitors []Monitor) {
-    addr, timesFailed := cc.ap.pickOutBest()
+func (cc *CC) doConnect(peerMonitors []peer.Monitor) {
+    addr, timesFailed := cc.ap.pickBest()
     if addr == nil {
         // Wait for half a second before retry
         time.Sleep(500 * time.Millisecond)
@@ -93,9 +94,9 @@ func (cc *CC) doConnect(peerMonitors []Monitor) {
     if conn != nil {
         // Spawn a peer
         id := cc.getID(addr.IP)
-        peer := newPeer(id, conn, addr, true)
-        peer.addMonitors(peerMonitors)
-        err := peer.start()
+        peer := peer.New(id, conn, addr, true)
+        peer.AddMonitors(peerMonitors)
+        err := peer.Start()
         if err != nil {
             cc.ap.addAddr(true, addr, timesFailed + 1, time.Now().Unix())
             //logger().Debugf("Failed to do handshake with peer %s: %s", addr.IP.ToNetIP(), err.Error())        

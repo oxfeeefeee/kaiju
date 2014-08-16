@@ -3,6 +3,7 @@ package knet
 import (
     "sync"
     "container/list"
+    "github.com/oxfeeefeee/kaiju/knet/peer"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
@@ -17,7 +18,7 @@ type addrStatus struct {
     // We keep this redundant data for faster comparision, pls refer to betterOrEqualAddr
     lastAvailableTime int64
     // ID of PeerInfo
-    id ID
+    id peer.ID
 }
 
 type addrPoolEntry struct {
@@ -33,7 +34,7 @@ type addrPoolEntry struct {
 //      addresses: a map containing all addresses for easy look up
 type addrPool struct {
     addrStatusQueue     *list.List
-    addresses           map[ID]*addrPoolEntry
+    addresses           map[peer.ID]*addrPoolEntry
     mutex               sync.Mutex
     // Embed the global idManager for convenience  
     *idManager
@@ -42,13 +43,13 @@ type addrPool struct {
 func newAddrPool(im *idManager) *addrPool {
     return &addrPool{
         addrStatusQueue: list.New(),
-        addresses: make( map[ID]*addrPoolEntry),
+        addresses: make( map[peer.ID]*addrPoolEntry),
         idManager: im,
     }
 }
 
 // Returns both *btcmsg.PeerInfo and timesFailed
-func (p *addrPool) pickOutBest() (*btcmsg.PeerInfo, int32) {
+func (p *addrPool) pickBest() (*btcmsg.PeerInfo, int32) {
     q := p.addrStatusQueue
     m := p.addresses
     p.mutex.Lock()

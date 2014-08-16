@@ -1,6 +1,5 @@
 // Remote bitcoin network peer/node
-
-package knet
+package peer
 
 import (
     "net"
@@ -12,11 +11,34 @@ import (
 
 const SendQueueSize = 2
 
+const defaultSendMsgTimeout = time.Second * 20
+
+const defaultExpectMsgTimeout = time.Second * 20
+
+// Returns (isTheMessageSwallowed, shouldWeStopExpectingMessage)
+type MsgFilter func(btcmsg.Message) (accept bool, stop bool)
+
+type ID uint64
+
+// Descriptor of message being sent
+type msgSent struct {
+    msg         btcmsg.Message
+    timeout     time.Duration
+    errChan     chan error
+}
+
+// Descriptor of message being expected
+type msgExpector struct {
+    filter      MsgFilter
+    timeout     time.Duration
+    retChan     chan struct{btcmsg.Message; Error error}
+}
+
 // Peer represents and communicates to a remote bitcoin node.
 //
 // Note that the ip of the remote node is used as the unique ID of the peer
 type Peer struct {
-    myID            ID
+    id            ID
     // Standard bitcoin protocol peer info 
     info            *btcmsg.PeerInfo
     // Is this an outgoing or incoming connection? the handshaking differs
@@ -37,23 +59,9 @@ type Peer struct {
     *monitors
 }
 
-// Descriptor of message being sent
-type msgSent struct {
-    msg         btcmsg.Message
-    timeout     time.Duration
-    errChan     chan error
-}
-
-// Descriptor of message being expected
-type msgExpector struct {
-    filter      MsgFilter
-    timeout     time.Duration
-    retChan     chan struct{btcmsg.Message; Error error}
-}
-
-func newPeer(id ID, conn net.Conn, info *btcmsg.PeerInfo, outgoing bool) *Peer {
+func New(id ID, conn net.Conn, info *btcmsg.PeerInfo, outgoing bool) *Peer {
     return &Peer{
-        myID: id,
+        id: id,
         info: info,
         outgoing: outgoing,
         conn: conn,
@@ -65,19 +73,35 @@ func newPeer(id ID, conn net.Conn, info *btcmsg.PeerInfo, outgoing bool) *Peer {
     }
 }
 
+func (p *Peer) ID() ID {
+    return p.id
+}
+
+func (p *Peer) BtcInfo() *btcmsg.PeerInfo {
+    return p.info
+}
+
 // Send a bitcoin message to remote peer
 // SendMsg mustn't block for Pool to work properly
-func (p *Peer) sendMsg(m *msgSent) {
+func (p *Peer) SendMsg(m btcmsg.Message, timeout time.Duration, ch chan error) {
+    if timeout <= 0 {
+        timeout = defaultSendMsgTimeout
+    }
+    msent := &msgSent{m, timeout, ch}
     select {
-        case p.sendChan <- m:
+        case p.sendChan <- msent:
         default:
-            if m.errChan != nil {
-                m.errChan <- errors.New("Peer sending queue full.")    
+            if msent.errChan != nil {
+                msent.errChan <- errors.New("Peer sending queue full.")    
             } 
     }
 }
 
-func (p *Peer) expectMsg(exp *msgExpector) {
+func (p *Peer) ExpectMsg(f MsgFilter, timeout time.Duration, ch chan struct{btcmsg.Message; Error error}) {
+    if timeout <= 0 {
+        timeout = defaultExpectMsgTimeout
+    }
+    exp := &msgExpector{f, timeout, ch}
     p.expMutex.Lock()
     p.expectors = append(p.expectors, exp)
     p.expMutex.Unlock()
@@ -100,17 +124,15 @@ func (p *Peer) expectMsg(exp *msgExpector) {
     }()
 }
 
-func (p *Peer) start() error{
+func (p *Peer) Start() error{
     err := p.versionHankshake()
     if err != nil {
         p.conn.Close()
         return err;
     }
-
     go p.onPeerUp(p)
     go p.loopSendMsg()
     go p.loopReceiveMsg()
-
     // Send getaddr
     err = btcmsg.WriteMsg(p.conn, btcmsg.NewGetAddrMsg())
     if err != nil {
@@ -121,7 +143,7 @@ func (p *Peer) start() error{
 }
 
 // OK to be called simultaneously by multiple goroutines
-func (p *Peer) kill() {
+func (p *Peer) Kill() {
     // This leads to read error, which will end the loop
     p.conn.Close()
 }
@@ -163,7 +185,7 @@ func (p *Peer) loopSendMsg() {
                 if m.errChan != nil {
                     m.errChan <- errors.New("Peer send message timeout.")
                 }
-                if m.timeout >= defalutSendMsgTimeout {
+                if m.timeout >= defaultSendMsgTimeout {
                     running = false
                 }
             case <-p.done:
@@ -173,7 +195,7 @@ func (p *Peer) loopSendMsg() {
             running = false
         }
     }
-    logger().Debugf("               PEER SEND exit %d", p.myID)
+    //logger().Debugf("               PEER SEND exit %d", p.id)
     p.cleanUp()
 }
 
@@ -185,15 +207,15 @@ func (p *Peer) loopReceiveMsg() {
             break
         } else {
             if !p.handleMessage(msg) {
-                p.onPeerMsg(p.myID, msg)
+                p.onPeerMsg(p.id, msg)
             }
         }
     }
-    logger().Debugf("               PEER RECEIVE exit %d", p.myID)
+    //logger().Debugf("               PEER RECEIVE exit %d", p.id)
     p.cleanUp()
 }
 
-// Some of the messages are handled here instead of sending to upper level
+// Some of the messages are handled here instead of being sent to upper level
 // Returns true if we don't want send this message to upper level
 func (p *Peer) handleMessage(msg btcmsg.Message) bool {
     switch msg.Command() {
@@ -201,7 +223,7 @@ func (p *Peer) handleMessage(msg btcmsg.Message) bool {
         ping := msg.(*btcmsg.Message_ping)
         pong := btcmsg.NewPongMsg().(*btcmsg.Message_pong)
         pong.Nonce = ping.Nonce
-        p.sendMsg(&msgSent{pong, defalutSendMsgTimeout, nil})
+        p.SendMsg(pong, 0, nil)
         return true
     default:
         p.expMutex.Lock()

@@ -1,4 +1,4 @@
-// Pool manages all remote bitcoin nodes, represented by knet.Peer's
+// Pool manages all remote bitcoin nodes, represented by knet.peer.Peer's
 package knet
 
 import (
@@ -6,12 +6,13 @@ import (
     "sync"
     "errors"
     "math/rand"
+    "github.com/oxfeeefeee/kaiju/knet/peer"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
     )
 
 type Pool struct {
     // All Peers
-    peers           map[ID]*Peer
+    peers           map[peer.ID]*peer.Peer
     // For peers access sync
     mutex           sync.RWMutex
     // Channel for receive bitcoin message
@@ -21,13 +22,13 @@ type Pool struct {
 }
 
 type receivedMsg struct {
-    peerID      ID
+    peerID      peer.ID
     msg         btcmsg.Message
 } 
 
 func newPool(im *idManager) *Pool {
     return &Pool {
-        peers: make(map[ID]*Peer),
+        peers: make(map[peer.ID]*peer.Peer),
         receiveMsgChan: make(chan *receivedMsg, 64),
         idManager: im,
     }
@@ -35,70 +36,56 @@ func newPool(im *idManager) *Pool {
 
 // Send a btc message to a specific peer
 // Pass 0 as timeout for default timeout length
-func (pool *Pool) SendMsg(p ID, m btcmsg.Message, timeout time.Duration) <-chan error {
-    if timeout <= 0 {
-        timeout = defalutSendMsgTimeout
-    }
-    pmsg := &msgSent{m, timeout, make(chan error, 1)}
-    
+func (pool *Pool) SendMsg(id peer.ID, m btcmsg.Message, timeout time.Duration) <-chan error {
+    ch := make(chan error, 1)
     pool.mutex.RLock()
-    peer, ok := pool.peers[p]
+    p, ok := pool.peers[id]
     pool.mutex.RUnlock()
     if ok {
-        peer.sendMsg(pmsg)
+        p.SendMsg(m, timeout, ch)
     }else{
-        pmsg.errChan <- errors.New("Peer no longer in pool.")
+        ch <- errors.New("peer.Peer no longer in pool.")
     }
-    return pmsg.errChan
+    return ch
 }
 
 // Broadcast a btc message to all connected peers
 func (pool *Pool) BroadcastMsg(m btcmsg.Message, incFunc BroadcastInclude, timeout time.Duration) {
-    if timeout <= 0 {
-        timeout = defalutSendMsgTimeout
-    }
     pool.mutex.RLock()
     defer pool.mutex.RUnlock()
     for _, p := range pool.peers {
         if incFunc(p) {
-            pmsg := &msgSent{m, timeout, nil}
-            p.sendMsg(pmsg)  
+            p.SendMsg(m, timeout, nil)
         }
     }
 }
 
 // Expect a btc message to be sent from peer "p" that matched the filter "f"
-func (pool *Pool) ExpectMsg(p ID, f MsgFilter, timeout time.Duration) <-chan struct{btcmsg.Message; Error error} {
-    if timeout <= 0 {
-        timeout = defalutSendMsgTimeout
-    }
-    emsg := &msgExpector{f, timeout, make(chan struct{btcmsg.Message; Error error}, 1)}
-
+func (pool *Pool) ExpectMsg(p peer.ID, f peer.MsgFilter, timeout time.Duration) <-chan struct{btcmsg.Message; Error error} {
+    ch := make(chan struct{btcmsg.Message; Error error}, 1)
     pool.mutex.RLock()
     peer, ok := pool.peers[p]
     pool.mutex.RUnlock()
     if ok {
-        peer.expectMsg(emsg)
+        peer.ExpectMsg(f, timeout, ch)
     }else{
-        if emsg.retChan != nil {
-            emsg.retChan <- struct{btcmsg.Message; Error error}{
-                nil, errors.New("Peer no longer in pool.")}
-        }
+        ch <- struct{btcmsg.Message; Error error}{
+            nil, errors.New("peer.Peer no longer in pool.")}
     }
-    return emsg.retChan
+    return ch
 }
 
 // Returns no more than "count" number of IDs,
 // TODO: optimize the speed maybe?
-func (pool *Pool) AnyPeers(count int, exclude []ID) []ID {
-    excl := make(map[ID]bool)
+func (pool *Pool) AnyPeers(count int, exclude []peer.ID) []peer.ID {
+    excl := make(map[peer.ID]bool)
     if exclude != nil {
         for _, id := range exclude {
             excl[id] = true
         }
     }
-    l := make([]ID, 0, count)
-    add := func(id ID) bool {
+    l := make([]peer.ID, 0, count)
+    add := func(id peer.ID) bool {
         if len(l) == count {
             return true
         }else {
@@ -161,38 +148,38 @@ func (pool *Pool) waitPeers(count int) <-chan struct{} {
 }
 
 // Member of Monitor interface
-func (pool *Pool) listenTypes() []string {
+func (pool *Pool) ListenTypes() []string {
     return []string{"inv", "headers", "block", "tx"}
 }
 
 // Member of Monitor interface
-func (pool *Pool) onPeerUp(p *Peer) {
+func (pool *Pool) OnPeerUp(p *peer.Peer) {
     pool.mutex.Lock()
     defer pool.mutex.Unlock()
 
-    if op, ok := pool.peers[p.myID]; ok {
-        logger().Printf("Waring, Peer already added %v", op.info)    
+    if op, ok := pool.peers[p.ID()]; ok {
+        logger().Printf("Warning, peer.Peer already added %v", op.BtcInfo())    
     }
-    pool.peers[p.myID] = p
-    //logger().Debugf("+Peer count: %v", len(pool.peers))
+    pool.peers[p.ID()] = p
+    //logger().Debugf("+peer.Peer count: %v", len(pool.peers))
 }
 
 // Member of Monitor interface
-func (pool *Pool) onPeerDown(p *Peer) {
+func (pool *Pool) OnPeerDown(p *peer.Peer) {
     pool.mutex.Lock()
     defer pool.mutex.Unlock()
 
-    id := p.myID
+    id := p.ID()
     if pool.peers[id] == nil {
-        logger().Printf("Can not find peer with ID %i", id)
+        logger().Printf("Can not find peer with peer.ID %i", id)
         return;
     }
     delete(pool.peers, id)
-    logger().Debugf("-Peer count: %v", len(pool.peers))
+    logger().Debugf("-peer.Peer count: %v", len(pool.peers))
 }
 
 // Member of Monitor interface
-func (pool *Pool) onPeerMsg(id ID, m btcmsg.Message) {
+func (pool *Pool) OnPeerMsg(id peer.ID, m btcmsg.Message) {
     //logger().Debugf("Got Message, type: %s", m.Command())
 }
 

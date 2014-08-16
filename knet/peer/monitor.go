@@ -1,4 +1,4 @@
-package knet
+package peer
 
 import (
     "sync"
@@ -7,10 +7,10 @@ import (
 
 // Monitors the activities of each peer
 type Monitor interface  {
-    onPeerUp(p *Peer)
-    onPeerDown(p *Peer)
-    onPeerMsg(id ID, msg btcmsg.Message)
-    listenTypes() []string
+    OnPeerUp(p *Peer)
+    OnPeerDown(p *Peer)
+    OnPeerMsg(id ID, msg btcmsg.Message)
+    ListenTypes() []string
 }
 
 type monitors struct {
@@ -24,7 +24,7 @@ func (ms *monitors) onPeerUp(p *Peer) {
     defer ms.mutex.RUnlock()
 
     for _, m := range ms.monitorSlice {
-        m.onPeerUp(p)
+        m.OnPeerUp(p)
     }
 }
 
@@ -33,7 +33,7 @@ func (ms *monitors) onPeerDown(p *Peer) {
     defer ms.mutex.RUnlock()
 
     for _, m := range ms.monitorSlice {
-        m.onPeerDown(p)
+        m.OnPeerDown(p)
     }
 } 
 
@@ -43,11 +43,11 @@ func (ms *monitors) onPeerMsg(id ID, msg btcmsg.Message) {
 
     m, ok := ms.msgReceivers[msg.Command()]
     if ok {
-        m.onPeerMsg(id, msg)
+        m.OnPeerMsg(id, msg)
     }
 } 
 
-func (ms *monitors) addMonitors(monitors []Monitor) {
+func (ms *monitors) AddMonitors(monitors []Monitor) {
     ms.mutex.Lock()
     defer ms.mutex.Unlock()
 
@@ -57,15 +57,7 @@ func (ms *monitors) addMonitors(monitors []Monitor) {
     ms.rebuildReceiverMap()
 }
 
-func (ms *monitors) addMonitor(m Monitor) {
-    ms.mutex.Lock()
-    defer ms.mutex.Unlock()
-
-    ms.monitorSlice = append(ms.monitorSlice, m)
-    ms.rebuildReceiverMap()
-} 
-
-func (ms *monitors) removeMonitor(monitor Monitor) {
+func (ms *monitors) RemoveMonitor(monitor Monitor) {
     ms.mutex.Lock()
     defer ms.mutex.Unlock()
 
@@ -84,7 +76,7 @@ func (ms *monitors) rebuildReceiverMap() {
     ms.msgReceivers = make(map[string]Monitor)
     s := ms.monitorSlice
     for _, m := range s {
-        types := m.listenTypes()
+        types := m.ListenTypes()
         for _, t := range types {
             // TODO: check duplicates and log error
             ms.msgReceivers[t] = m
