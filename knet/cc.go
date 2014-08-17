@@ -14,15 +14,12 @@ type CC struct {
     ap              *addrPool
     // To control how many dailing in progress
     dialControl     chan struct{}
-    // Embed the global idManager for convenience  
-    *idManager
 }
 
-func newCC(im *idManager) *CC {
+func newCC() *CC {
     return &CC{
-        newAddrPool(im), 
+        newAddrPool(), 
         make(chan struct{}, kaiju.MaxDialConcurrency), 
-        im,
     }
 }
 
@@ -64,7 +61,7 @@ func (cc *CC) OnPeerDown(p *peer.Peer) {
 }
 
 // Member of peer.Monitor interface
-func (cc *CC) OnPeerMsg(id peer.ID, msg btcmsg.Message) {
+func (cc *CC) OnPeerMsg(_ peer.Handle, msg btcmsg.Message) {
     // TODO: addAddr is very slow, gorountine is a workaround for that
     go func (){
         addrMsg := msg.(*btcmsg.Message_addr)
@@ -72,10 +69,9 @@ func (cc *CC) OnPeerMsg(id peer.ID, msg btcmsg.Message) {
             cc.ap.addAddr(false, addr, 0, 0)
         }
     }()
-    //cc.ap.dump()
 }
 
-func (cc *CC) doConnect(peerMonitors []peer.Monitor) {
+func (cc *CC) doConnect(monitors []peer.Monitor) {
     addr, timesFailed := cc.ap.pickBest()
     if addr == nil {
         // Wait for half a second before retry
@@ -88,26 +84,24 @@ func (cc *CC) doConnect(peerMonitors []peer.Monitor) {
     time.Sleep(time.Millisecond * 1000 * time.Duration(math.Exp2(float64(timesFailed))))
     
     // Try to connect to currently best candidate
-    // 1. Remove it from the list, then add it back in whether failed to connect or not
+    // 1. Remove it from the list, then add it back in if failed to start the peer
     cchan := dialAddr(addr)
     conn := <- cchan
-    if conn != nil {
-        // Spawn a peer
-        id := cc.getID(addr.IP)
-        peer := peer.New(id, conn, addr, true)
-        peer.AddMonitors(peerMonitors)
-        err := peer.Start()
-        if err != nil {
-            cc.ap.addAddr(true, addr, timesFailed + 1, time.Now().Unix())
-            //logger().Debugf("Failed to do handshake with peer %s: %s", addr.IP.ToNetIP(), err.Error())        
-        } else {
-            //logger().Debugf("Connected to peer %s", addr.IP.ToNetIP())        
-        }
-    } else {
-        cc.ap.addAddr(true, addr, timesFailed + 1, time.Now().Unix())
-        //logger().Debugf("Failed to connect to peer %s", addr.IP.ToNetIP())   
+    if ok := createPeer(addr, conn, true, monitors); !ok {
+        cc.ap.addAddr(true, addr, timesFailed + 1, time.Now().Unix())    
     }
     _ = <- cc.dialControl
+}
+
+func createPeer(addr *btcmsg.PeerInfo, conn net.Conn, outgoing bool, monitors []peer.Monitor) bool {
+    if conn == nil {
+        return false
+    }
+    _, err := peer.Launch(addr, conn, outgoing, monitors)
+    if err != nil {
+        return false
+    }
+    return true
 }
 
 func dialAddr(a *btcmsg.PeerInfo) <-chan net.Conn {

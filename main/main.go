@@ -31,7 +31,11 @@ func mainFunc() {
     }
 
     logger().Printf("Starting KNet...")
-    <- knet.Start(10)
+    ch, err := knet.Start(10)
+    if err != nil {
+        logger().Printf("Error starting knet: %s", err)
+    }
+    <- ch
     logger().Printf("KNet initialized.")
 
     logger().Printf("Initializing Node...")

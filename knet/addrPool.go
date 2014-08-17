@@ -18,7 +18,7 @@ type addrStatus struct {
     // We keep this redundant data for faster comparision, pls refer to betterOrEqualAddr
     lastAvailableTime int64
     // ID of PeerInfo
-    id peer.ID
+    handle  peer.Handle
 }
 
 type addrPoolEntry struct {
@@ -34,17 +34,14 @@ type addrPoolEntry struct {
 //      addresses: a map containing all addresses for easy look up
 type addrPool struct {
     addrStatusQueue     *list.List
-    addresses           map[peer.ID]*addrPoolEntry
+    addresses           map[peer.Handle]*addrPoolEntry
     mutex               sync.Mutex
-    // Embed the global idManager for convenience  
-    *idManager
 }
 
-func newAddrPool(im *idManager) *addrPool {
+func newAddrPool() *addrPool {
     return &addrPool{
         addrStatusQueue: list.New(),
-        addresses: make( map[peer.ID]*addrPoolEntry),
-        idManager: im,
+        addresses: make( map[peer.Handle]*addrPoolEntry),
     }
 }
 
@@ -65,7 +62,7 @@ func (p *addrPool) pickBest() (*btcmsg.PeerInfo, int32) {
         q.Remove(e)
         as := e.Value.(*addrStatus)
         tf := as.timesFailed
-        entry := m[as.id]
+        entry := m[as.handle]
         // Now we put it at the back of the queue, so that addAddr doesn't create duplicates
         // with newly received addresses
         as.timesFailed = maxTriesToConnectPeer + 1
@@ -77,25 +74,25 @@ func (p *addrPool) pickBest() (*btcmsg.PeerInfo, int32) {
 
 // "replace" dectates if we want to update the existing info about the peer or not
 func (p *addrPool) addAddr(replace bool, addr *btcmsg.PeerInfo, timesFailed int32, lastTryTime int64) {
-    id := p.getID(addr.IP)
+    handle := getHandle(addr.IP)
     q := p.addrStatusQueue
     m := p.addresses
     
     p.mutex.Lock()
     defer p.mutex.Unlock()
     // First check if it's already in the pool
-    entry, ok := m[id]
+    entry, ok := m[handle]
     if ok {
         if !replace { // We are done here if we dont want to replace
             return
         }
         // Remove from both the map and the queue
-        delete(m, id)
+        delete(m, handle)
         q.Remove(entry.status)
     }
 
     var element *list.Element
-    as := &addrStatus{timesFailed, lastTryTime, int64(addr.Time), id}
+    as := &addrStatus{timesFailed, lastTryTime, int64(addr.Time), handle}
     // Do a linear search for the right spot.
     // TODO: binary search if nessary
     for e := q.Front(); e != nil; e = e.Next() {
@@ -110,7 +107,7 @@ func (p *addrPool) addAddr(replace bool, addr *btcmsg.PeerInfo, timesFailed int3
         element = q.PushBack(as)    
     }
     // Finally put address in p.addresses
-    m[id] = &addrPoolEntry{element, addr} 
+    m[handle] = &addrPoolEntry{element, addr} 
 }
 
 // Compares the quality(how likely we can connect to them) of two addresses
