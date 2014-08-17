@@ -57,10 +57,10 @@ func (h Handle) Start() error{
     return p.start()
 }
 
-func (h Handle) Kill() {
+func (h Handle) Kick() {
     p := peerMgr.getPeer(h)
     if p != nil {
-        p.kill()
+        p.kick()
     }
 }
 

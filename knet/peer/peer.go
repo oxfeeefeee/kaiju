@@ -6,6 +6,7 @@ import (
     "sync"
     "time"
     "errors"
+    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
@@ -15,9 +16,14 @@ const defaultSendMsgTimeout = time.Second * 20
 
 const defaultExpectMsgTimeout = time.Second * 20
 
+const tickCycle = time.Second * 10
+
+const timeToPing = time.Second * 60
+
+const timeToKill = time.Second * 90
+
 // Returns (isTheMessageSwallowed, shouldWeStopExpectingMessage)
 type MsgFilter func(btcmsg.Message) (accept bool, stop bool)
-
 
 // Descriptor of message being sent
 type msgSent struct {
@@ -50,6 +56,10 @@ type Peer struct {
     expectors       []*msgExpector
     // Mutex for expectors
     expMutex        sync.Mutex
+    // Last received message time
+    activeTime      time.Time
+    // Mutex for activeTime
+    timeMutex       sync.RWMutex
     // For tell sender when chan closed
     done            chan struct{}
     // Used to clean up this peer
@@ -67,6 +77,7 @@ func Launch(info *btcmsg.PeerInfo, conn net.Conn, outgoing bool, moni []Monitor)
         conn: conn,
         sendChan: make(chan *msgSent, SendQueueSize),
         expectors: make([]*msgExpector, 0, 2),
+        activeTime: time.Now(),
         done: make(chan struct{}),
         onceCleanUp: new(sync.Once),
         monitors : new(monitors),
@@ -79,6 +90,7 @@ func Launch(info *btcmsg.PeerInfo, conn net.Conn, outgoing bool, moni []Monitor)
     if err != nil {
         return InvalidHandle, err
     }
+    go p.onPeerUp(p)
     return peerMgr.addPeer(p)
 }
 
@@ -139,7 +151,6 @@ func (p *Peer) start() error{
         p.conn.Close()
         return err;
     }
-    go p.onPeerUp(p)
     go p.loopSendMsg()
     go p.loopReceiveMsg()
     // Send getaddr
@@ -152,9 +163,9 @@ func (p *Peer) start() error{
 }
 
 // OK to be called simultaneously by multiple goroutines
-func (p *Peer) kill() {
-    // This leads to read error, which will end the loop
-    p.conn.Close()
+func (p *Peer) kick() {
+    p.cleanUp()
+    log.Infoln("Kicked ", p.handle)
 }
 
 func (p *Peer) cleanUp() {
@@ -175,13 +186,12 @@ func (p *Peer) cleanUp() {
 }
 
 func (p *Peer) loopSendMsg() {
-    // This "running" is used to fix a bug about "break"
+    // This "running" is used to fix a bug about "break",
     // so if you break in "select", you cannot get out of "for".
     running := true
     for running {
         select {
         case m := <-p.sendChan:
-            // "ch" is used do timeout 
             ch := make(chan error, 1)
             go func() { ch <- btcmsg.WriteMsg(p.conn, m.msg) } ()
             select {
@@ -202,11 +212,23 @@ func (p *Peer) loopSendMsg() {
             case <-p.done:
                 running = false
             }
+        case <-time.Tick(tickCycle):
+            // Send "ping" and check conn timeout
+            p.timeMutex.RLock()
+            t := time.Since(p.activeTime)
+            p.timeMutex.RUnlock()
+            if t >= timeToKill {
+                p.kick()
+            } else if t >= timeToPing {
+                ping := btcmsg.NewPingMsg().(*btcmsg.Message_ping)
+                ping.Nonce = uint64(p.handle)
+                // Could dead lock if not use goroutine
+                go p.sendMsg(ping, 0, nil)
+            }
         case <-p.done:
             running = false
         }
     }
-    //log.Debugf("               PEER SEND exit %d", p.handle)
     p.cleanUp()
 }
 
@@ -222,19 +244,29 @@ func (p *Peer) loopReceiveMsg() {
             }
         }
     }
-    //log.Debugf("               PEER RECEIVE exit %d", p.handle)
     p.cleanUp()
 }
 
 // Some of the messages are handled here instead of being sent to upper level
 // Returns true if we don't want send this message to upper level
 func (p *Peer) handleMessage(msg btcmsg.Message) bool {
+    // Update activeTime
+    p.timeMutex.RLock()
+    p.activeTime = time.Now()
+    p.timeMutex.RUnlock()
+    // Handle msg
     switch msg.Command() {
     case "ping":
         ping := msg.(*btcmsg.Message_ping)
         pong := btcmsg.NewPongMsg().(*btcmsg.Message_pong)
         pong.Nonce = ping.Nonce
         p.sendMsg(pong, 0, nil)
+        return true
+    case "pong":
+        pong := msg.(*btcmsg.Message_pong)
+        if pong.Nonce != uint64(p.handle) {
+            log.Infoln("Bad pong nonce from:", p.handle)
+        }
         return true
     default:
         p.expMutex.Lock()

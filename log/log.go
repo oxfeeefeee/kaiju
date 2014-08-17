@@ -86,15 +86,21 @@ func Errorln(v ...interface{}) {
 
 func Panic(v ...interface{}) {
     logger.SetPrefix("<PANIC>")
-    logger.Output(2, fmt.Sprint(v...))
+    s := fmt.Sprint(v...)
+    logger.Output(2, s)
+    panic(s)
 }
 
 func Panicf(format string, v ...interface{}) {
     logger.SetPrefix("<PANIC>")
-    logger.Output(2, fmt.Sprintf(format, v...))
+    s := fmt.Sprintf(format, v...)
+    logger.Output(2, s)
+    panic(s)
 }
 
 func Panicln(v ...interface{}) {
     logger.SetPrefix("<PANIC>")
-    logger.Output(2, fmt.Sprintln(v...))
+    s := fmt.Sprintln(v...)
+    logger.Output(2, s)
+    panic(s)
 }

@@ -5,6 +5,7 @@ import (
     "sync"
     "errors"
     "math/rand"
+    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
@@ -140,7 +141,8 @@ func (m *peerManager) addPeer(p *Peer) (Handle, error) {
 func (m *peerManager) peerDie(h Handle) {
     p := m.peers[h]
     if p == nil {
-        // PRINT ERROR
+        log.Errorln("peerManager.peerDie: invalid handle", h)
     }
-    delete(m.peers, h) 
+    delete(m.peers, h)
+    log.Debugln("-peer.Peer count: ", len(m.peers), h)
 }
