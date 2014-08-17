@@ -2,7 +2,6 @@ package script
 
 import (
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/klib"
     )
 
@@ -152,7 +151,3 @@ func (s Script) getOpcode(p int) (op Opcode, operand []byte, next int, err error
     return
 }
 
-// Handy function
-func logger() *kaiju.Logger {
-    return kaiju.MainLogger()
-}

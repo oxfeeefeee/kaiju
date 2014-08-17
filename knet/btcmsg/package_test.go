@@ -11,15 +11,15 @@ import (
 func TestVersionMsg(t *testing.T) {
     buf := new(bytes.Buffer)
     vmsg := NewLocalVersionMsg(NewPeerInfo())
-    logger().Debugf("Sending data: %+v", vmsg)
+    log.Debugf("Sending data: %+v", vmsg)
     err := WriteMsg(buf, vmsg)
-    logger().Debugf("Encoded data: %s", hex.EncodeToString(buf.Bytes()))
+    log.Debugf("Encoded data: %s", hex.EncodeToString(buf.Bytes()))
     if err != nil {
         t.Errorf("Encode error : %s", err.Error())
     }
 
     rmsg, rerr := ReadMsg(buf)
-    logger().Debugf("Decoded data: %+v", rmsg)
+    log.Debugf("Decoded data: %+v", rmsg)
     //vermsg := vmsg.(*Message_version)
 
     if rerr != nil {
@@ -37,7 +37,7 @@ func TestChecksum(t *testing.T) {
     copy(aslice, b[:])
     d := binary.LittleEndian.Uint32(b[0:4])
 
-    logger().Debugf("sha256sha256 %v, %v", c, d)
+    log.Debugf("sha256sha256 %v, %v", c, d)
     if d != c {
         t.Errorf("Checksum unmatch")
     }

@@ -119,7 +119,7 @@ func listen(connChan chan net.Conn, laddr string) {
     go func () {
         listener, err := net.Listen("tcp", laddr)
         if err != nil {
-            logger().Printf("Error listening: %s", err.Error())
+            log.Infof("Error listening: %s", err.Error())
             return;
         }
         defer listener.Close()
@@ -127,7 +127,7 @@ func listen(connChan chan net.Conn, laddr string) {
         for {
             conn, err := listener.Accept()
             if err != nil {
-                logger().Printf("Error accept: %s", err.Error())
+                log.Infof("Error accept: %s", err.Error())
                 continue
             }
             connChan <- conn

@@ -11,6 +11,7 @@ import (
     "fmt"
     "path/filepath"
     "github.com/oxfeeefeee/kaiju/klib"
+    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju"
 )
   
@@ -59,16 +60,12 @@ func testNotUint32(t *testing.T, db *KDB, key uint32, value uint32) {
 func commit(t *testing.T, db *KDB, tag uint32) {
     err := db.Commit(tag)
     if err != nil {
-        logger().Debugf("errerrerrerrerr, %v", err)
+        log.Debugf("errerrerrerrerr, %v", err)
         t.Errorf("Failed to Commit: %s", err)
     }
 }
 
 func _TestMemoryKDB(t *testing.T) {
-    err := kaiju.Init()
-    if err != nil {
-        t.Errorf("Failed to call kaiju.Init: %s", err)
-    }
     buf := klib.NewMemFile(50 * 1024 * 1024)
 
     //capacity := uint32(1024 * 102)
@@ -91,13 +88,9 @@ func _TestMemoryKDB(t *testing.T) {
 }
 
 func TestKDB(t *testing.T) {
-    err := kaiju.Init()
-    if err != nil {
-        t.Errorf("Failed to call kaiju.Init: %s", err)
-    }
 
     cfg := kaiju.GetConfig()
-    path := filepath.Join(kaiju.GetConfigFileDir(), cfg.TempDataDir)
+    path := filepath.Join(kaiju.ConfigFileDir(), cfg.TempDataDir)
     os.MkdirAll(path, os.ModePerm)
 
     path = filepath.Join(path, "testdb.dat")

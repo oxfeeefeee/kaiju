@@ -206,7 +206,7 @@ func (p *Peer) loopSendMsg() {
             running = false
         }
     }
-    //logger().Debugf("               PEER SEND exit %d", p.handle)
+    //log.Debugf("               PEER SEND exit %d", p.handle)
     p.cleanUp()
 }
 
@@ -214,7 +214,7 @@ func (p *Peer) loopReceiveMsg() {
     for {
         msg, err := btcmsg.ReadMsg(p.conn) 
         if err != nil {
-            //logger().Printf("loopReceiveMsg error: %s", err.Error())
+            //log.Infof("loopReceiveMsg error: %s", err.Error())
             break
         } else {
             if !p.handleMessage(msg) {
@@ -222,7 +222,7 @@ func (p *Peer) loopReceiveMsg() {
             }
         }
     }
-    //logger().Debugf("               PEER RECEIVE exit %d", p.handle)
+    //log.Debugf("               PEER RECEIVE exit %d", p.handle)
     p.cleanUp()
 }
 

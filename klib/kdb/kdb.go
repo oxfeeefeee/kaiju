@@ -120,7 +120,7 @@ func (db *KDB) Add(key []byte, value []byte) error {
     n, err := db.slotScan(kdata, nil, 
         func(val []byte, mv bool) error {
             collision = true // We hit an internal key collision 
-            //logger().Debugf("Internal key collision happened")
+            //log.Debugf("Internal key collision happened")
             var cd collisionData
             if mv {
                 cd.fromBytes(val)

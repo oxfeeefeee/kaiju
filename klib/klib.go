@@ -5,7 +5,6 @@ package klib
 import (
     "crypto/sha256"
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju"
     )
 
 func Sha256Sha256(p []byte) *Hash256 {
@@ -24,9 +23,4 @@ func Uint32ToBytes(i uint32) []byte {
     p := make([]byte, 4)
     binary.LittleEndian.PutUint32(p, i)
     return p
-}
-
-// Handy function
-func logger() *kaiju.Logger {
-    return kaiju.MainLogger()
 }

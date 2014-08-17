@@ -9,6 +9,7 @@ package knet
 import (
     "errors"
     "github.com/oxfeeefeee/kaiju"
+    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/knet/peer"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
@@ -85,7 +86,7 @@ func ParalMsgForMsg(m btcmsg.Message, f peer.MsgFilter, paral int) btcmsg.Messag
         if me.Error == nil {
             return me.Message
         } else {
-            logger().Debugf("ParalMsgForMsg error : %s", me.Error)
+            log.Debugf("ParalMsgForMsg error : %s", me.Error)
         }
     }
     return nil
@@ -94,10 +95,4 @@ func ParalMsgForMsg(m btcmsg.Message, f peer.MsgFilter, paral int) btcmsg.Messag
 func getHandle(ip btcmsg.PeerIP) peer.Handle {
     return instance.pm.GetHandle(ip)
 }
-
-// Handy function
-func logger() *kaiju.Logger {
-    return kaiju.MainLogger()
-}
-
 

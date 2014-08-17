@@ -99,7 +99,7 @@ func (c *Cold) OutputDB() UtxoDB {
 
 func initFilePath() (string ,error) {
     cfg := kaiju.GetConfig()
-    path := filepath.Join(kaiju.GetConfigFileDir(), cfg.DataDir)
+    path := filepath.Join(kaiju.ConfigFileDir(), cfg.DataDir)
     if err := os.MkdirAll(path, os.ModePerm); err != nil {
         return "", err
     } else {
@@ -118,9 +118,4 @@ func openFile(path string, name string) (*os.File, os.FileInfo, error) {
     } else {
         return f, fi, err
     }
-}
-
-// Handy function
-func logger() *kaiju.Logger {
-    return kaiju.MainLogger()
 }

@@ -6,7 +6,7 @@ import (
     "net/http"
     )
 
-func RunProfiler() {
+func init() {
     go func() {
         log.Println(http.ListenAndServe("localhost:6060", nil))
     }()

@@ -2,37 +2,31 @@ package kaiju
 
 import (
     "os"
+    "log"
     "time"
     "runtime"
     "math/rand"
-    "github.com/oxfeeefeee/kaiju/profiling"
+    "path/filepath"
+    klog "github.com/oxfeeefeee/kaiju/log"
 )
 
-func Init() error {
-    runtime.GOMAXPROCS(runtime.NumCPU())
-    
-    profiling.RunProfiler()
+func init() {
+    err := readConfig()
+    if err != nil {
+        log.Panicln("Failed to read config file: ", err)
+    }
 
+    path := filepath.Join(ConfigFileDir(), cfg.LogFileName)
+    klog.Init(path)
+
+    runtime.GOMAXPROCS(runtime.NumCPU())
     rand.Seed(time.Now().UTC().UnixNano())
 
-    err := ReadJsonConfigFile()
-    if err != nil {
-        MainLogger().Printf("Failed to ready config file: %s", err.Error())
-        return err;
-    }
-    err = InitLog()
-    if err != nil {
-        MainLogger().Printf("Failed to init logging: %s", err.Error())
-        return err;
-    }
-
     // Print working directory
-    wd, wderr := os.Getwd()
-    if wderr == nil {
-        MainLogger().Printf("Working directory: %s", wd)
+    wd, err := os.Getwd()
+    if err == nil {
+        klog.Infoln("Working directory:", wd)
     } else {
-        MainLogger().Printf("Failed to print working directory: %s", wderr.Error())
-        return wderr
+        klog.Panicln("Failed to print working directory:", err)
     }
-    return nil
 }

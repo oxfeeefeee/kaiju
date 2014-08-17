@@ -3,6 +3,7 @@ package knet
 import (
     "sync"
     "container/list"
+    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/knet/peer"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
@@ -136,5 +137,5 @@ func (p *addrPool) dump() {
             stats[t] = 1
         }
     }
-    logger().Printf("AddrPool Dump %v", stats)
+    log.Infof("AddrPool Dump %v", stats)
 }

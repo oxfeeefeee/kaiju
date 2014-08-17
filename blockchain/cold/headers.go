@@ -7,6 +7,7 @@ import (
     "sync"
     "errors"
     "encoding/binary"
+    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/catma"
     "github.com/oxfeeefeee/kaiju/klib"
 )
@@ -63,7 +64,7 @@ func (h *headers) Append(hs []*catma.Header) error {
             return err
         }
     }
-    logger().Printf("Headers total: %v", len(h.data))
+    log.Infof("Headers total: %v", len(h.data))
     return f.Sync()
 }
 
@@ -89,17 +90,17 @@ func (h *headers) loadHeaders() {
         ch := new(catma.Header)
         if err := binary.Read(r, binary.LittleEndian, ch); err == nil {
             if err = h.appendHeader(ch); err != nil {
-                logger().Printf("Error loading block header: %s", err)
+                log.Infof("Error loading block header: %s", err)
                 break;
             }
         } else {
             if err != io.EOF {
-                logger().Printf("Error reading blcok header file: %s", err)
+                log.Infof("Error reading blcok header file: %s", err)
             }
             break;
         }
     }
-    logger().Printf("Loaded header count: %v", len(h.data))
+    log.Infof("Loaded header count: %v", len(h.data))
 }
 
 // Append new block header, the chain always at least has genesis in it.

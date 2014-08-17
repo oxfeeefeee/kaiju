@@ -4,7 +4,6 @@
 package node 
 
 import (
-    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/blockchain"
 )
 
@@ -23,9 +22,4 @@ func Start() {
         // Then run node
         runNode()
     }()
-}
-
-// Handy function
-func logger() *kaiju.Logger {
-    return kaiju.MainLogger()
 }

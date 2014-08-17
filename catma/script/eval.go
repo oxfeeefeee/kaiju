@@ -36,7 +36,7 @@ func (s *stack) eval(script Script, c scriptContext, flags EvalFlag) error {
         0, 0, 0, script, c, flags}
     for pc < len(script) {
         op, operand, next, err := script.getOpcode(pc)
-        //logger().Debugf("op: %s %v\n", op, operand)
+        //log.Debugf("op: %s %v\n", op, operand)
         pc = next
         ctx.pc = next
         if err != nil {

@@ -2,16 +2,18 @@
 package main
 
 import (
-    "github.com/oxfeeefeee/kaiju"
+    _ "github.com/oxfeeefeee/kaiju"
+    _ "github.com/oxfeeefeee/kaiju/profiling"
+    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/knet"
     "github.com/oxfeeefeee/kaiju/node"
 )
 
 func mainCleanUp(){
-    logger().Printf("Cleaning up...")
+    log.Infof("Cleaning up...")
     err := node.Destroy()
     if err != nil {
-        logger().Printf("Error destroying node: %s", err.Error())
+        log.Infof("Error destroying node: %s", err.Error())
     }
 }
 
@@ -19,34 +21,29 @@ func mainFunc() {
     c := make(chan struct{})
     /*defer func() {
         if r := recover(); r != nil {
-            logger().Printf("Main func paniced:", r)
-            logger().Printf("Exiting ...")
+            log.Infof("Main func paniced:", r)
+            log.Infof("Exiting ...")
             close(c)
         }
     }()*/
 
-    err := kaiju.Init()
-    if err != nil {
-        return;
-    }
-
-    logger().Printf("Starting KNet...")
+    log.Infof("Starting KNet...")
     ch, err := knet.Start(10)
     if err != nil {
-        logger().Printf("Error starting knet: %s", err)
+        log.Infof("Error starting knet: %s", err)
     }
     <- ch
-    logger().Printf("KNet initialized.")
+    log.Infof("KNet initialized.")
 
-    logger().Printf("Initializing Node...")
+    log.Infof("Initializing Node...")
     err = node.Init()
     if err != nil {
-        logger().Printf("Error initializing Node: %s", err.Error())
+        log.Infof("Error initializing Node: %s", err.Error())
         return;
     }
-    logger().Printf("Starting Node...")
+    log.Infof("Starting Node...")
     node.Start()
-    logger().Printf("Node started.")
+    log.Infof("Node started.")
 
     // Don't quit
     _ = <- c
@@ -54,9 +51,4 @@ func mainFunc() {
 
 func main() {
     mainFunc()
-}
-
-// Handy function
-func logger() *kaiju.Logger {
-    return kaiju.MainLogger()
 }

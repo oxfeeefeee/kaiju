@@ -6,7 +6,6 @@ import (
     "errors"
     "bytes"
     "encoding/binary"
-    "github.com/oxfeeefeee/kaiju"
 )
 
 type handleValue func(value []byte, multiVal bool) error
@@ -289,9 +288,4 @@ func readHeader(s Storage) (uint32, uint32, uint32, int64, error) {
         return 0, 0, 0, 0, errInvalid   
     }
     return capacity, bcTag, ecTag, cursor, nil
-}
-
-// Handy function
-func logger() *kaiju.Logger {
-    return kaiju.MainLogger()
 }

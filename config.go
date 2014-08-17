@@ -16,26 +16,19 @@ type Config struct {
     LogFileName     string
 }
 
-var cfg             *Config
+var cfg *Config
 
 var configFileDir   string
 
 func GetConfig() *Config {
-    if cfg == nil {
-        panic("Haven't read config file yet!")
-    }
     return cfg
 }
 
-func GetConfigFileDir() string {
+func ConfigFileDir() string {
     return configFileDir
 }
 
-func ReadJsonConfigFile() error {
-    if cfg != nil {
-        return nil
-    }
-
+func readConfig() error {
     // Search up for config.json
     left, upALevel, right, result := "./", "../", configFileName, ""
     for i := 0; i < 5; i ++ {

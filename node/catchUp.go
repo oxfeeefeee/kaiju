@@ -9,10 +9,11 @@ package node
 
 import (
     "time"
+    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/knet"
-    "github.com/oxfeeefeee/kaiju/knet/btcmsg"
     "github.com/oxfeeefeee/kaiju/catma"
+    "github.com/oxfeeefeee/kaiju/knet/btcmsg"
     "github.com/oxfeeefeee/kaiju/blockchain"
     "github.com/oxfeeefeee/kaiju/blockchain/cold"
 )
@@ -25,7 +26,7 @@ func catchUp() {
     db := cold.Get().OutputDB()
     tag, err := db.Tag()
     if err != nil {
-        logger().Printf("Error reading OutputDB tag: %s", err)
+        log.Infof("Error reading OutputDB tag: %s", err)
         return
     }
     start := int(tag) + 1
@@ -39,9 +40,9 @@ func catchUp() {
         }
         end := i + step
         if ok := moreBlocks(i, end); !ok {
-            logger().Printf("--------------------------")
-            logger().Printf("--------------------------")
-            logger().Printf("--------------------------")
+            log.Infof("--------------------------")
+            log.Infof("--------------------------")
+            log.Infof("--------------------------")
             break
         }
         i = end
@@ -73,7 +74,7 @@ func moreHeaders() {
         h, _ := mh.(*btcmsg.Message_headers)
         err := headers.Append(h.Headers)
         if err != nil {
-            logger().Printf("Error appending headers: %s", err)
+            log.Infof("Error appending headers: %s", err)
         }
     }
 }
@@ -83,13 +84,13 @@ func moreBlocks(start int, end int) bool {
     for i := start; i < end; i++ {
         idx = append(idx, i)
     }
-    logger().Debugf("Start getting from %d to %d", start, end)
+    log.Debugf("Start getting from %d to %d", start, end)
     blocks, err := getBlocks(idx)
     if err != nil {
-        logger().Debugf("getBlocks error %s", err)
+        log.Debugf("getBlocks error %s", err)
         return false
     }
-    logger().Debugf("Got %d blocks\n", len(blocks))
+    log.Debugf("Got %d blocks\n", len(blocks))
     
     if ok := processBlocks(blocks, start); !ok {
         return false
@@ -97,10 +98,10 @@ func moreBlocks(start int, end int) bool {
     t := uint32(end - 1)
     db := cold.Get().OutputDB()
     if err := db.Commit(t); err != nil {
-        logger().Printf("Error OutputDB commit: %s", err)
+        log.Infof("Error OutputDB commit: %s", err)
         return false
     }
-    logger().Debugf("Commited blocks to %d\n", t)
+    log.Debugf("Commited blocks to %d\n", t)
     return true
 }
 
@@ -112,7 +113,7 @@ func processBlocks(bmsgs []btcmsg.Message, startIndex int) bool {
             ctx := (*catma.Tx)(tx)
             err := catma.VerifyTx(ctx, db, true, false)
             if err != nil {
-                logger().Printf("Process tx %s error: %s", ctx.Hash(), err)
+                log.Infof("Process tx %s error: %s", ctx.Hash(), err)
                 return false
             }
         }
@@ -157,7 +158,7 @@ func getBlocks(idx []int) ([]btcmsg.Message, error) {
             }
             m.Inventory = invLeft
             count = len(invLeft)
-            logger().Debugf("Count left: %d; error: %s", count, err)
+            log.Debugf("Count left: %d; error: %s", count, err)
         }
     }
     // Assemble the result
