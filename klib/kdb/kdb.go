@@ -208,27 +208,16 @@ func (db *KDB) Remove(key []byte) (bool, error) {
     return found, nil
 }
 
+// Returns if write-ahead data is full
+func (db *KDB) WAFull() bool {
+    return len(db.wa.ValData) * 10 >= WADataSize
+}
+
 // Save data in memory to permanent storage
 func (db *KDB) Commit(tag uint32) error {
     db.mutex.Lock()
     defer db.mutex.Unlock()
-    // 1. Save write-ahead data.
-    if err := db.saveWAData(); err != nil {
-        return err
-    }
-    // 2. Mark commit begin
-    if err := db.beginWACommit(tag); err != nil {
-        return err
-    }
-    // 3. commit
-    if err := db.commitWAData(); err != nil {
-        return err
-    }
-    // 4. Mark commit end
-    if err := db.endWACommit(tag); err != nil {
-        return err
-    }
-    return nil
+    return db.commit(tag)
 }
 
 func (db *KDB) Tag() (uint32, error) {

@@ -5,6 +5,7 @@ package node
 
 import (
     "github.com/oxfeeefeee/kaiju/blockchain"
+    "github.com/oxfeeefeee/kaiju/node/catchUp"
 )
 
 func Init() error {
@@ -18,7 +19,7 @@ func Destroy() error {
 func Start() {
     go func() {
         // First make sure our blockchain is up to date
-        catchUp()
+        catchUp.CatchUp()
         // Then run node
         runNode()
     }()

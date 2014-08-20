@@ -37,7 +37,7 @@ const MaxAlertSize = 100 * 1024
 
 const MaxAlertSingnatureSize = 1024
 
-const MaxDialConcurrency = 1000
+const MaxDialConcurrency = 100
 
 const DialTimeout = 2000
 

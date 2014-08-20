@@ -19,13 +19,6 @@ func mainCleanUp(){
 
 func mainFunc() {
     c := make(chan struct{})
-    /*defer func() {
-        if r := recover(); r != nil {
-            log.Infof("Main func paniced:", r)
-            log.Infof("Exiting ...")
-            close(c)
-        }
-    }()*/
 
     log.Infof("Starting KNet...")
     ch, err := knet.Start(10)

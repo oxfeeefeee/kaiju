@@ -6,21 +6,19 @@ import (
     "sync"
     "time"
     "errors"
-    "github.com/oxfeeefeee/kaiju/log"
+    //"github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
 
 const SendQueueSize = 2
 
-const defaultSendMsgTimeout = time.Second * 20
+const defaultSendMsgTimeout = time.Second * 10
 
-const defaultExpectMsgTimeout = time.Second * 20
-
-const tickCycle = time.Second * 10
+const defaultExpectMsgTimeout = time.Second * 10
 
 const timeToPing = time.Second * 60
 
-const timeToKill = time.Second * 90
+const timeToKick = time.Second * 90
 
 // Returns (isTheMessageSwallowed, shouldWeStopExpectingMessage)
 type MsgFilter func(btcmsg.Message) (accept bool, stop bool)
@@ -56,17 +54,18 @@ type Peer struct {
     expectors       []*msgExpector
     // Mutex for expectors
     expMutex        sync.Mutex
-    // Last received message time
-    activeTime      time.Time
-    // Mutex for activeTime
-    timeMutex       sync.RWMutex
+    // Timer for sending keep-alive ping message
+    keepAliveTimer  *time.Timer
+    // Timer for kicking not responding remote peer
+    kickTimer       *time.Timer
     // For tell sender when chan closed
     done            chan struct{}
     // Used to clean up this peer
     onceCleanUp     *sync.Once
     // Embeds monitors
     *monitors
-
+    // Embeds ping
+    //*ping
 }
 
 func Launch(info *btcmsg.PeerInfo, conn net.Conn, outgoing bool, moni []Monitor) (Handle, error) {
@@ -77,10 +76,10 @@ func Launch(info *btcmsg.PeerInfo, conn net.Conn, outgoing bool, moni []Monitor)
         conn: conn,
         sendChan: make(chan *msgSent, SendQueueSize),
         expectors: make([]*msgExpector, 0, 2),
-        activeTime: time.Now(),
         done: make(chan struct{}),
         onceCleanUp: new(sync.Once),
-        monitors : new(monitors),
+        monitors: new(monitors),
+        //ping: newPing(),
     } 
     err := p.addMonitors(moni)
     if err != nil {
@@ -110,11 +109,11 @@ func (p *Peer) sendMsg(m btcmsg.Message, timeout time.Duration, ch chan error) {
     }
     msent := &msgSent{m, timeout, ch}
     select {
-        case p.sendChan <- msent:
-        default:
-            if msent.errChan != nil {
-                msent.errChan <- errors.New("Peer sending queue full.")    
-            } 
+    case p.sendChan <- msent:
+    default:
+        if msent.errChan != nil {
+            msent.errChan <- errors.New("Peer sending queue full.")    
+        } 
     }
 }
 
@@ -145,27 +144,24 @@ func (p *Peer) expectMsg(f MsgFilter, timeout time.Duration, ch chan struct{btcm
     }()
 }
 
+// Needs to do cleanup if returns error
 func (p *Peer) start() error{
     err := p.versionHankshake()
     if err != nil {
         p.conn.Close()
         return err;
     }
-    go p.loopSendMsg()
+    p.keepAliveTimer = time.NewTimer(timeToPing)
+    p.kickTimer = time.NewTimer(timeToKick)
+    go p.loopMain()
     go p.loopReceiveMsg()
     // Send getaddr
-    err = btcmsg.WriteMsg(p.conn, btcmsg.NewGetAddrMsg())
-    if err != nil {
-        p.conn.Close()
-        return err
-    }
+    p.sendMsg(btcmsg.NewGetAddrMsg(), 0, nil)
     return nil
 }
 
-// OK to be called simultaneously by multiple goroutines
 func (p *Peer) kick() {
     p.cleanUp()
-    log.Infoln("Kicked ", p.handle)
 }
 
 func (p *Peer) cleanUp() {
@@ -174,6 +170,8 @@ func (p *Peer) cleanUp() {
     }
     p.onceCleanUp.Do( 
         func() {
+            p.keepAliveTimer.Stop()
+            p.kickTimer.Stop()
             // Remove onceCleanup in case this instance get reused
             p.onceCleanUp = nil
             close(p.done)
@@ -185,7 +183,7 @@ func (p *Peer) cleanUp() {
        })
 }
 
-func (p *Peer) loopSendMsg() {
+func (p *Peer) loopMain() {
     // This "running" is used to fix a bug about "break",
     // so if you break in "select", you cannot get out of "for".
     running := true
@@ -212,19 +210,12 @@ func (p *Peer) loopSendMsg() {
             case <-p.done:
                 running = false
             }
-        case <-time.Tick(tickCycle):
-            // Send "ping" and check conn timeout
-            p.timeMutex.RLock()
-            t := time.Since(p.activeTime)
-            p.timeMutex.RUnlock()
-            if t >= timeToKill {
-                p.kick()
-            } else if t >= timeToPing {
-                ping := btcmsg.NewPingMsg().(*btcmsg.Message_ping)
-                ping.Nonce = uint64(p.handle)
-                // Could dead lock if not use goroutine
-                go p.sendMsg(ping, 0, nil)
-            }
+        case <-p.keepAliveTimer.C:
+            ping := btcmsg.NewPingMsg().(*btcmsg.Message_ping)
+            ping.Nonce = uint64(p.handle)
+            p.sendMsg(ping, 0, nil)
+        case <-p.kickTimer.C:
+            p.kick()
         case <-p.done:
             running = false
         }
@@ -250,10 +241,9 @@ func (p *Peer) loopReceiveMsg() {
 // Some of the messages are handled here instead of being sent to upper level
 // Returns true if we don't want send this message to upper level
 func (p *Peer) handleMessage(msg btcmsg.Message) bool {
-    // Update activeTime
-    p.timeMutex.RLock()
-    p.activeTime = time.Now()
-    p.timeMutex.RUnlock()
+    // Update timers
+    p.keepAliveTimer.Reset(timeToPing)
+    p.kickTimer.Reset(timeToKick)
     // Handle msg
     switch msg.Command() {
     case "ping":
@@ -265,7 +255,7 @@ func (p *Peer) handleMessage(msg btcmsg.Message) bool {
     case "pong":
         pong := msg.(*btcmsg.Message_pong)
         if pong.Nonce != uint64(p.handle) {
-            log.Infoln("Bad pong nonce from:", p.handle)
+        //    log.Infof("Bad pong nonce from: %d!=%d", p.handle, pong.Nonce)
         }
         return true
     default:

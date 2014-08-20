@@ -14,6 +14,7 @@ var ErrBadHandle = errors.New("Invalid peer handle")
 
 // Send a btc message to a specific peer
 // Pass 0 as timeout for default timeout length
+// Non-blocking call
 func (h Handle) SendMsg(m btcmsg.Message, timeout time.Duration) <-chan error {
     ch := make(chan error, 1)
     p := peerMgr.getPeer(h)
@@ -26,6 +27,7 @@ func (h Handle) SendMsg(m btcmsg.Message, timeout time.Duration) <-chan error {
 }
 
 // Expect a btc message to be sent from peer "p" that matched the filter "f"
+// Non-blocking call
 func (h Handle) ExpectMsg(f MsgFilter, timeout time.Duration) <-chan struct{btcmsg.Message; Error error} {
     ch := make(chan struct{btcmsg.Message; Error error}, 1)
     p := peerMgr.getPeer(h)

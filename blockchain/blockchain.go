@@ -26,14 +26,8 @@ func Destroy() error {
     return cold.Get().Destroy()
 }
 
-// Get an array of InvElement to make a "getdata" message
-func GetInv(heights []int) []*InvElement {
+func GetInvElem(h int) *InvElement {
     headers := cold.Get().Headers()
-    inv := make([]*InvElement, 0)
-    for _, h := range heights {
-        header := headers.Get(h)
-        ele := &InvElement{InvTypeBlock, *(header.Hash())}
-        inv = append(inv, ele)
-    }
-    return inv
+    header := headers.Get(h)
+    return &InvElement{InvTypeBlock, *(header.Hash())}
 }

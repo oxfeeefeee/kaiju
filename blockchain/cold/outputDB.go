@@ -3,6 +3,7 @@ package cold
 import (
     "bytes"
     "errors"
+    "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/klib/kdb"
 )
@@ -43,7 +44,13 @@ func (u *outputDB) Add(h *klib.Hash256, i uint32, val []byte) error {
 }
 
 func (u *outputDB) Commit(tag uint32) error {
-    return u.db.Commit(tag)
+    if u.db.WAFull() {
+        log.Infof("Committing blocks up to number %d ...", tag)
+        err := u.db.Commit(tag)
+        log.Infof("Committed blocks up to number %d", tag)
+        return err
+    }
+    return nil
 }
 
 func (u *outputDB) Tag() (uint32, error) {

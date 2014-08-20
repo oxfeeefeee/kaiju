@@ -4,7 +4,6 @@ import (
     "time"
     "sync"
     "errors"
-    "math/rand"
     "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
@@ -16,15 +15,19 @@ type Manager interface {
     Count() int
     // Blocks until the number of connnected peers reached "count"
     Wait(count int) <-chan struct{}
-    // Returns no more than "count" number of Handles
-    Peers(count int) []Handle
+    // Exclusively get a handle of a peer
+    Borrow() Handle
+    // Return a borrowed handle
+    Return(h Handle)
 }
 
 type peerManager struct {
     handles     map[btcmsg.PeerIP]Handle 
-    peers       map[Handle]*Peer
     nextHandle  Handle
+    peers       map[Handle]*Peer
+    borrowed    map[Handle]bool
     mutex       sync.RWMutex
+    bmutex      sync.RWMutex
 }
 
 var peerMgr *peerManager
@@ -38,6 +41,7 @@ func Init() (Manager, error) {
     peerMgr = &peerManager {
         handles: make(map[btcmsg.PeerIP]Handle),
         peers: make(map[Handle]*Peer),
+        borrowed: make(map[Handle]bool),
         nextHandle: 0,
     }
     return peerMgr, nil
@@ -79,42 +83,25 @@ func (m *peerManager) Wait(count int) <-chan struct{} {
     return ch
 }
 
-func (m *peerManager) Peers(count int) []Handle {
-    l := make([]Handle, 0, count)
-    add := func(id Handle) bool {
-        if len(l) == count {
-            return true
-        }else {
-            l = append(l, id)
-        }
-        return false
-    }
-
-    if m.Count() == 0 {
-        return l
-    }
-    n := rand.Intn(m.Count())
-    i := n
+// Exclusively get a handle of a peer
+func (m *peerManager) Borrow() Handle {
     m.mutex.RLock()
     defer m.mutex.RUnlock()
-    // Start with n'th peer
-    for id, _ := range m.peers {
-        if i > 0 {
-            i -= 1
-        } else if add(id) {
-            return l
+    m.bmutex.Lock()
+    defer m.bmutex.Unlock()
+    for h, _ := range m.peers {
+        if !m.borrowed[h] {
+            return h
         }
     }
-    // Start from the beginning again if the list is not full
-    for id, _ := range m.peers {
-        if add(id) {
-            return l
-        } else if (i >= n) {
-            return l
-        } 
-        i += 1
-    }
-    return l
+    return InvalidHandle
+}
+
+// Return a borrowed handle
+func (m *peerManager) Return(h Handle) {
+    m.bmutex.Lock()
+    defer m.bmutex.Unlock()
+    delete(m.borrowed, h)
 }
 
 func (m *peerManager) getPeer(h Handle) *Peer {

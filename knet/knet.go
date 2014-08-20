@@ -43,14 +43,15 @@ func Start(count int) (<-chan struct{}, error) {
     return pm.Wait(count), nil
 }
 
+func Peers() peer.Manager {
+    return instance.pm
+}
+
 // Send a message and expect more than one messages in return
 // i.e. getting blocks or txs
 func MsgForMsgs(m btcmsg.Message, handler MsgHandler, count int) error {
-    handles := instance.pm.Peers(1)
-    if len(handles) == 0 {
-        return errors.New("Failed to find any remote peers.")
-    }
-    h := handles[0]
+    h := Peers().Borrow()
+    defer Peers().Return(h)
     h.SendMsg(m, 0)
     ch := h.ExpectMsg(
         func(m btcmsg.Message) (bool, bool) {
@@ -70,13 +71,13 @@ func MsgForMsgs(m btcmsg.Message, handler MsgHandler, count int) error {
 // Similar to http://blog.golang.org/go-concurrency-patterns-timing-out-and
 // try more and get the fastest one 
 func ParalMsgForMsg(m btcmsg.Message, f peer.MsgFilter, paral int) btcmsg.Message {
-    handles := instance.pm.Peers(paral)
     ch := make(chan struct{btcmsg.Message; Error error}, paral)
-    for _, h := range handles {
-        h := h
+    for i := 0; i < paral; i++ {
+        h := Peers().Borrow()
         go func() {
             select {
             case ch <- h.MsgForMsg(m, f):
+                Peers().Return(h)
             default:
             }
         }()

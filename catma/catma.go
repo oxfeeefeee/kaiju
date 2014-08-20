@@ -13,7 +13,7 @@ type UtxoSet interface {
     Add(h *klib.Hash256, i uint32, val []byte) error
 }
 
-func VerifyTx(tx *Tx, utxo UtxoSet, preBip16 bool, standard bool) error {
+func VerifyTx(tx *Tx, utxo UtxoSet, preBip16 bool, standard bool, pseudo bool) error {
     err := tx.FormatCheck()
     if err != nil {
         return err
@@ -21,7 +21,6 @@ func VerifyTx(tx *Tx, utxo UtxoSet, preBip16 bool, standard bool) error {
     // TODO more checks...
 
     if !tx.IsCoinBase() {
-        //log.Debugf("yesyesyes %s", tx.Hash())
         for i, txi := range tx.TxIns {
             op := &(txi.PreviousOutput)
             opBytes, err := utxo.Get(&op.Hash, op.Index)
@@ -32,9 +31,11 @@ func VerifyTx(tx *Tx, utxo UtxoSet, preBip16 bool, standard bool) error {
             }
             var txo TxOut
             txo.FromBytes(opBytes)
-            err = VerifyInput(txo.PKScript, tx, i, preBip16, standard)
-            if err != nil {
-                return err
+            if !pseudo {
+                err = VerifyInput(txo.PKScript, tx, i, preBip16, standard)
+                if err != nil {
+                    return err
+                }
             }
         }
         for _, txi := range tx.TxIns {
@@ -47,7 +48,6 @@ func VerifyTx(tx *Tx, utxo UtxoSet, preBip16 bool, standard bool) error {
     }
     hash := tx.Hash()
     for i, txo := range tx.TxOuts {
-        //log.Debugf("added OTX %s %d", hash, i)
         err := utxo.Add(hash, uint32(i), txo.Bytes())
         if err != nil {
             return err

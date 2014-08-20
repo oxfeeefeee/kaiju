@@ -42,6 +42,26 @@ func (wa *waData) clear() {
     wa.ValData = make([]byte,0)
 }
 
+func (db *KDB) commit(tag uint32) error {
+    // 1. Save write-ahead data.
+    if err := db.saveWAData(); err != nil {
+        return err
+    }
+    // 2. Mark commit begin
+    if err := db.beginWACommit(tag); err != nil {
+        return err
+    }
+    // 3. commit
+    if err := db.commitWAData(); err != nil {
+        return err
+    }
+    // 4. Mark commit end
+    if err := db.endWACommit(tag); err != nil {
+        return err
+    }
+    return nil
+}
+
 func (db *KDB) saveWAData() error {
     if _, err := db.storage.Seek(HeaderSize, 0); err != nil {
         return err
