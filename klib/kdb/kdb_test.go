@@ -79,15 +79,15 @@ func createFile(t *testing.T, path string, n string) *os.File {
     return f
 }
 
-func _TestMemoryKDB(t *testing.T) {
+func TestMemoryKDB(t *testing.T) {
     buf := klib.NewMemFile(50 * 1024 * 1024)
-    wa := klib.NewMemFile(5 * 1024 * 1024)
+    wa := klib.NewMemFile(50 * 1024 * 1024)
 
-    //capacity := uint32(1024 * 102)
+    //capacity := uint32(10)
     capacity := uint32(200000)
-    db, dberr := New(capacity, buf, wa)
-    if dberr != nil {
-        t.Errorf("Failed to create KDB: %s", dberr)
+    db, err := New(capacity, buf, wa)
+    if err != nil {
+        t.Errorf("Failed to create KDB: %s", err)
     }
     for i:=uint32(0); i < capacity; i++ {
         writeUint32(t, db, uint32(i), uint32(i))  
@@ -95,7 +95,21 @@ func _TestMemoryKDB(t *testing.T) {
     for i:=uint32(0); i < capacity; i++ {
         testUint32(t, db, uint32(i), uint32(i))  
     }
+    if err := db.Commit(capacity); err != nil {
+        t.Errorf("Failed to commit: %s", err)
+    }
     t.Log("KDB:",db)
+
+    buf2 := klib.NewMemFile(50 * 1024 * 1024)
+    wa2 := klib.NewMemFile(5 * 1024 * 1024)
+    db2, err := db.Rebuild(capacity, buf2, wa2)
+    if err != nil {
+        t.Errorf("Failed to rebuild db %s", err)
+    }
+    for i:=uint32(0); i < capacity; i++ {
+        testUint32(t, db2, uint32(i), uint32(i))  
+    }
+    t.Log("KDB:",db2)
 }
 
 func TestKDB(t *testing.T) {
@@ -157,7 +171,11 @@ func TestKDB(t *testing.T) {
         testUint32(t, db, uint32(i), uint32(i))  
     }
 
-    t.Log("KDB:",db)
+    r, g, err := db.enumerate(nil)
+    if dberr != nil {
+        t.Errorf("Failed to scan keys: %s", err)
+    } 
+    t.Logf("KDB:keys %d %d",r, g)
 
     f.Seek(0, 0)
     wa.Seek(0, 0)
@@ -170,7 +188,11 @@ func TestKDB(t *testing.T) {
         }
     }
 
-    t.Log("KDB:",db)
+    r, g, err = db.enumerate(nil)
+    if dberr != nil {
+        t.Errorf("Failed to scan keys: %s", err)
+    } 
+    t.Logf("KDB:keys %d %d",r, g)
     
     if closeErr := f.Close(); closeErr != nil {
         t.Errorf("Error closing file: %s", closeErr)

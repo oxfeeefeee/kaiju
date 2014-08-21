@@ -18,7 +18,7 @@ type handleItem func(slotData keyData, slotNum int64, emptyFollow bool,
 // or get a key match
 func (db *KDB) slotScan(key []byte, hi handleItem, hv handleValue) (int64, error) {
     t := db.slotCount()
-    slotNum := db.getDefaultSlot(key)
+    slotNum := db.defaultSlot(key)
     i := slotNum
     if i >= t {
         panic("KDB.findEmptySlot: slot number >= slot count")
@@ -27,7 +27,7 @@ func (db *KDB) slotScan(key []byte, hi handleItem, hv handleValue) (int64, error
     for {
         reachedEnd := false
         size := int64(SlotBatchReadSize)
-        if i + SlotBatchReadSize >= t {
+        if i + size >= t {
             size = t - i
             reachedEnd = true
         }
@@ -40,10 +40,10 @@ func (db *KDB) slotScan(key []byte, hi handleItem, hv handleValue) (int64, error
         }
         for j := int64(0); j < size; j++ {
             offset := j*SlotSize
-            // Get from write-ahead data first
-            slotData, ok := db.wa.getKey(i+j)
-            if !ok {
-                slotData = keyData(buf[offset:offset+SlotSize])
+            slotData := keyData(buf[offset:offset+SlotSize])
+            data, ok := db.wa.getKey(i+j)
+            if ok {
+                copy(slotData, data)
             }
             if slotData.empty(){
                 return i + j, nil
@@ -55,7 +55,7 @@ func (db *KDB) slotScan(key []byte, hi handleItem, hv handleValue) (int64, error
             key[0], slotData[0] = key0, skey0
             if result == 0 {
                 // A match is found, read the value
-                defaultLen := keyData(slotData).defaultLenVaule()
+                defaultLen := keyData(slotData).unitValLen()
                 ptr := binary.LittleEndian.Uint32(slotData[InternalKeySize:])
                 v, mv, err := db.readValue(ptr, defaultLen)
                 if err != nil {
@@ -95,7 +95,7 @@ func (db *KDB) emptyFollow(buf []byte, slotNum int64) bool {
 }
 
 // Get the default slot number for a given key
-func (db *KDB) getDefaultSlot(key []byte) int64 {
+func (db *KDB) defaultSlot(key []byte) int64 {
     Key0 := keyData(key).clearFlags()
     // Convert the byte slice to a uint64, it's a hash so we dont care about endianness
     // but let's make it look like big endian
@@ -108,16 +108,16 @@ func (db *KDB) getDefaultSlot(key []byte) int64 {
     return n
 }
 
-func (db *KDB) readValue(ptr uint32, isDefaultLen bool) ([]byte, bool, error) {
-    pos := db.dataBeginPos() + int64(ptr) * DefaultValueLen
+func (db *KDB) readValue(ptr uint32, unitLen bool) ([]byte, bool, error) {
+    pos := db.dataBeginPos() + int64(ptr) * ValLenUnit
     var r io.ReadSeeker
     r = db.storage
     if pos >= db.cursor { // Need to read from Write-ahead-data
         pos -= db.cursor
         r = bytes.NewReader(db.wa.ValData)
     }
-    if isDefaultLen {
-        value := make([]byte, DefaultValueLen, DefaultValueLen)
+    if unitLen {
+        value := make([]byte, ValLenUnit, ValLenUnit)
         _, err := readAt(r, pos, value)
         if err != nil {
             return nil, false, err
@@ -150,18 +150,18 @@ func (db *KDB) readValue(ptr uint32, isDefaultLen bool) ([]byte, bool, error) {
 }
 
 func (db *KDB) writeValue(value []byte, multiVal bool) {
-    if len(value) == DefaultValueLen && !multiVal {
+    if len(value) == ValLenUnit && !multiVal {
         db.wa.addValue(value)
     } else {
         vl := len(value)
-        // The data length must be multiplies of DefaultValueLen
+        // The data length must be multiplies of ValLenUnit
         // so we need to pad with 0 when needed
         dl := vl + 2
-        count := dl / DefaultValueLen
-        if dl % DefaultValueLen > 0 {
+        count := dl / ValLenUnit
+        if dl % ValLenUnit > 0 {
             count++
         }
-        fullLen := count * DefaultValueLen
+        fullLen := count * ValLenUnit
         buf := make([]byte, fullLen, fullLen)
         // First 2 bytes is for length and multiVal flag
         if multiVal {
@@ -204,10 +204,10 @@ func (db *KDB) writeBlank(batchSize int64, totalSize int64) error {
 
 func (db *KDB) dataLoc() uint32 {
     valuePtr := db.cursor - db.dataBeginPos() + int64(len(db.wa.ValData))
-    if (valuePtr % DefaultValueLen) != 0 {
-        panic("KDB.addRecord: (valuePtr % DefaultValueLen) != 0")
+    if (valuePtr % ValLenUnit) != 0 {
+        panic("KDB.addRecord: (valuePtr % ValLenUnit) != 0")
     } 
-    return uint32(valuePtr / DefaultValueLen)
+    return uint32(valuePtr / ValLenUnit)
 }
 
 func (db *KDB) slotsBeginPos() int64 {
@@ -221,6 +221,17 @@ func (db *KDB) dataBeginPos() int64 {
 // total_slot_count = db.capacity * 2
 func (db *KDB) slotCount() int64 {
     return int64(db.capacity) * 2
+}
+
+func (db *KDB) tag() (uint32, error) {
+    if _, err := db.storage.Seek(0, 0); err != nil {
+        return 0, err
+    }
+    _, tag, _, err := readHeader(db.storage)
+    if err != nil {
+        return 0, err
+    }
+    return tag, nil
 }
 
 func readAt(r io.ReadSeeker, c int64, p []byte) (int64, error) {

@@ -8,8 +8,8 @@ import (
     //"github.com/oxfeeefeee/kaiju/log"
 )
 
-// For value that with length of DefaultValueLen, we make a mark and do not record the length
-const DefaultValueLen = 20
+// For value that with length of ValLenUnit, we make a mark and do not record the length
+const ValLenUnit = 20
 
 // Internal key size
 const InternalKeySize = 6
@@ -25,7 +25,7 @@ const Version = 1
 const HeaderSize = 3 + 1 + 4 * 4 + 4 + 8
 
 // How many slot we read at one time
-const SlotBatchReadSize = 32
+const SlotBatchReadSize = 64
 
 type Storage interface {
     Seek(offset int64, whence int) (ret int64, err error)
@@ -50,8 +50,10 @@ type KDB struct {
     wa                  waData
     // Current length, or the position to write next.
     cursor              int64
-    // Thread safety
+    // Mutex for the whole DB
     mutex               sync.RWMutex
+    // Mutex for the main storage
+    smutex              sync.RWMutex
     // DB statistics
     *Stats
 }
@@ -119,9 +121,11 @@ func (db *KDB) Add(key []byte, value []byte) error {
     if len(value) > int(math.MaxInt16) {
         return errors.New("KDB:Add data too long!")
     }
-    kdata := toInternalKey(key)
+    kdata := toInternal(key)
     db.mutex.Lock()
     defer db.mutex.Unlock()
+    db.smutex.RLock()
+    defer db.smutex.RUnlock()
     collision := false
     n, err := db.slotScan(kdata, nil, 
         func(val []byte, mv bool) error {
@@ -141,7 +145,7 @@ func (db *KDB) Add(key []byte, value []byte) error {
         return err
     }
     c := make([]byte, SlotSize, SlotSize)
-    kdata.setFlags(len(value) == DefaultValueLen)
+    kdata.setFlags(len(value) == ValLenUnit)
     copy(c[:InternalKeySize], kdata[:])
     binary.LittleEndian.PutUint32(c[InternalKeySize:], db.dataLoc())
     db.writeKey(c, n)
@@ -151,9 +155,11 @@ func (db *KDB) Add(key []byte, value []byte) error {
 
 // Get record value with key "k"
 func (db *KDB) Get(key []byte) ([]byte, error) {
-    kdata := toInternalKey(key)
+    kdata := toInternal(key)
     db.mutex.RLock()
     defer db.mutex.RUnlock()
+    db.smutex.RLock()
+    defer db.smutex.RUnlock()
     var value []byte
     _, err := db.slotScan(kdata, nil,
         func(val []byte, mv bool) error {
@@ -176,11 +182,13 @@ func (db *KDB) Get(key []byte) ([]byte, error) {
 // For non-internal-key-collision cases,it only modifies the slot section in two possible ways
 // - If we know the next slot is empty, we can safely mark the deleted as empty
 // - If we don't know the next slot is empty or not, we can only mark the deleted as deleted
-// For internal-key-collision cases, we in-place change the slotData and value 
+// For internal-key-collision cases, we in-place change the slotData 
 func (db *KDB) Remove(key []byte) (bool, error) {
-    kdata := toInternalKey(key)
+    kdata := toInternal(key)
     db.mutex.Lock()
     defer db.mutex.Unlock()
+    db.smutex.RLock()
+    defer db.smutex.RUnlock()
     found := false
     _, err := db.slotScan(kdata, 
         func(slotData keyData, slotNum int64, emptyFollow bool, val []byte, mv bool) error {
@@ -216,6 +224,8 @@ func (db *KDB) Remove(key []byte) (bool, error) {
 
 // Returns if write-ahead data is full
 func (db *KDB) WAValueLen() int {
+    db.mutex.RLock()
+    defer db.mutex.RUnlock()
     return len(db.wa.ValData)
 }
 
@@ -223,18 +233,15 @@ func (db *KDB) WAValueLen() int {
 func (db *KDB) Commit(tag uint32) error {
     db.mutex.Lock()
     defer db.mutex.Unlock()
+    db.smutex.Lock()
+    defer db.smutex.Unlock()
     return db.commit(tag)
 }
 
 func (db *KDB) Tag() (uint32, error) {
     db.mutex.RLock()
     defer db.mutex.RUnlock()
-    if _, err := db.storage.Seek(0, 0); err != nil {
-        return 0, err
-    }
-    _, tag, _, err := readHeader(db.storage)
-    if err != nil {
-        return 0, err
-    }
-    return tag, nil
+    db.smutex.RLock()
+    defer db.smutex.RUnlock()
+    return db.tag()
 }
