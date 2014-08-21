@@ -7,6 +7,7 @@
 package knet
 
 import (
+    "time"
     "errors"
     "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/log"
@@ -56,7 +57,7 @@ func MsgForMsgs(m btcmsg.Message, handler MsgHandler, count int) error {
     ch := h.ExpectMsg(
         func(m btcmsg.Message) (bool, bool) {
             return handler(m), count == 0
-        }, 0)
+        }, time.Second * 20)
     for count > 0 {
         ret := <- ch
         if ret.Error != nil {

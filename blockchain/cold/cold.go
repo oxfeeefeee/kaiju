@@ -10,10 +10,6 @@ import (
     "github.com/oxfeeefeee/kaiju/klib/kdb"
 )
 
-const headersFileName = "header.dat"
-
-const kdbFileName = "kdb.dat"
-
 var cold Cold
 
 type HeaderArray interface {
@@ -25,13 +21,14 @@ type HeaderArray interface {
 
 type UtxoDB interface {
     catma.UtxoSet
-    Commit(tag uint32) error
+    Commit(tag uint32, force bool) error
     Tag() (uint32, error)
 }
 
 type Cold struct {
     hfile   *os.File
     dbFile  *os.File
+    waFile  *os.File
     h       *headers
     db      *outputDB
 }
@@ -46,7 +43,7 @@ func (c *Cold) Init() error {
         return err
     }
 
-    f, _, err := openFile(path, headersFileName)
+    f, _, err := openFile(path, kaiju.GetConfig().HeadersFileName)
     if err != nil {
         return err
     }
@@ -54,23 +51,28 @@ func (c *Cold) Init() error {
     c.h = newHeaders(f)
     c.h.loadHeaders()
 
-    f, fi, err := openFile(path, kdbFileName)
+    dbf, dbfi, err := openFile(path, kaiju.GetConfig().KdbFileName)
+    if err != nil {
+        return err
+    }
+    waf, _, err := openFile(path, kaiju.GetConfig().KdbWAFileName)
     if err != nil {
         return err
     }
     var db *kdb.KDB
-    if fi.Size() == 0 {
-        db, err = kdb.New(kaiju.KDBCapacity, f)
+    if dbfi.Size() == 0 {
+        db, err = kdb.New(kaiju.GetConfig().KDBCapacity, dbf, waf)
         if err != nil {
             return err
         }
     } else {
-        db, err = kdb.Load(f)
+        db, err = kdb.Load(dbf, waf)
         if err != nil {
             return err
         }
     }
-    c.dbFile = f
+    c.dbFile = dbf
+    c.waFile = waf
     c.db = newOutputDB(db)
     return nil
 }
@@ -82,10 +84,8 @@ func (c *Cold) Destroy() error {
     if err := c.dbFile.Close(); err != nil {
         return err
     }
-    c.hfile = nil
-    c.dbFile = nil
-    c.h = nil
-    c.db = nil
+    c.hfile, c.dbFile, c.waFile = nil, nil, nil
+    c.h, c.db = nil, nil
     return nil
 }
 

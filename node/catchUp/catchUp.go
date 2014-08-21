@@ -46,10 +46,10 @@ func blocksCatchUp() {
 func swdlParam(begin int, total int) (int, int, int) {
     switch {
     case begin < 120001:
-        return 120001, 100, 1000
+        return 120001, 200, 100
     case begin < 180001:
-        return 180001, 100, 20
+        return 180001, 200, 10
     default:
-        return total + 1, 100, 2
+        return total, 200, 1
     }
 }

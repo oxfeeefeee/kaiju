@@ -1,11 +1,11 @@
 package kdb
 
 import (
-    "fmt"
     "sync"
     "math"
     "errors"
     "encoding/binary"
+    //"github.com/oxfeeefeee/kaiju/log"
 )
 
 // For value that with length of DefaultValueLen, we make a mark and do not record the length
@@ -21,14 +21,8 @@ const SlotSize = 10
 const Version = 1
 
 // The size of header in bytes
-//3_"KDB" + 1_version + 4_capacity + 4_beginCommitTag + 4_endCommitTag + 8_cursor
-const HeaderSize = 3 + 1 + 4 + 4 + 4 + 8
-const beginCommitTagPos = 8
-const endCommitTagPos = 12
-const savedCursorPos = 16
-
-// The size of space reserved for write-aheader data
-const WADataSize = 1024 * 1024 * 80
+//3_"KDB" + 1_version + 4*4_stats + commitTag + 8_cursor
+const HeaderSize = 3 + 1 + 4 * 4 + 4 + 8
 
 // How many slot we read at one time
 const SlotBatchReadSize = 32
@@ -48,29 +42,37 @@ type Storage interface {
 // 45bit key.
 // The solution is storing full key when there is a internal key collision.
 type KDB struct {
-    // How many entries this DB is expected to store
-    capacity            uint32
-    // The ReadWriteSeeker of a file or a chuck of memory 
+    // Main storage of a file or a chuck of memory 
     storage             Storage
+    // Storage for write-ahead data
+    was                 Storage
     // Write ahead data
     wa                  waData
     // Current length, or the position to write next.
     cursor              int64
-    // DB statistics
-    stats               *Stats
     // Thread safety
     mutex               sync.RWMutex
+    // DB statistics
+    *Stats
 }
 
-func New(capacity uint32, s Storage) (*KDB, error) {
-    db := &KDB{ 
+func New(capacity uint32, s Storage, was Storage) (*KDB, error) {
+    stats := &Stats{
         capacity: capacity,
-        wa: waData{map[int64]keyData{}, []byte{},},
+        deadSlots: 0,
+        deadValues: 0,
+        records: 0,
+    }
+    cursor := HeaderSize + int64(capacity) * 2 * SlotSize
+    db := &KDB{ 
         storage: s,
-        stats: new(Stats),
+        was: was,
+        wa: waData{map[int64]keyData{}, []byte{},},
+        cursor: cursor,
+        Stats: stats,
     }
     // Write header and init slots
-    if err := db.writeHeader(); err != nil {
+    if err := writeHeader(s, stats, 0, cursor); err != nil {
         return nil, err
     }
     if err := db.writeBlankSections(); err != nil {
@@ -79,29 +81,33 @@ func New(capacity uint32, s Storage) (*KDB, error) {
     if err := db.storage.Sync(); err != nil {
         return nil, err
     }
+    // To generate a valid write ahead file
+    if err := db.commit(0); err != nil {
+        return nil, err
+    }
     return db, nil
 }
 
-func Load(s Storage) (*KDB, error) {
-    capacity, bct, ect, cursor, err := readHeader(s)
+func Load(s Storage, was Storage) (*KDB, error) {
+    stats, tag, cursor, err := readHeader(s)
     if err != nil {
         return nil, err
     }
     db := &KDB{ 
-        capacity: capacity,
-        wa: waData{map[int64]keyData{}, []byte{},},
         storage: s,
-        stats: new(Stats),
+        was: was,
+        wa: waData{map[int64]keyData{}, []byte{},},
+        Stats: stats,
     }
     db.cursor = cursor
-    if bct != ect { // Need to re-commit write ahead data
-        if err := db.loadWAData(); err != nil {
-            return nil, err
-        }
-        if err := db.commitWAData(); err != nil {
-            return nil, err
-        }
-        if err := db.endWACommit(bct); err != nil {
+    wastats, watag, _, err := readHeader(was)
+    if err != nil {
+        return nil, err
+    }
+    if tag != watag { // Need to re-commit write ahead data
+        db.loadWAData()
+        db.Stats = wastats
+        if err := db.commit(watag); err != nil {
             return nil, err
         }
     }
@@ -209,8 +215,8 @@ func (db *KDB) Remove(key []byte) (bool, error) {
 }
 
 // Returns if write-ahead data is full
-func (db *KDB) WAFull() bool {
-    return len(db.wa.ValData) * 10 >= WADataSize
+func (db *KDB) WAValueLen() int {
+    return len(db.wa.ValData)
 }
 
 // Save data in memory to permanent storage
@@ -223,16 +229,12 @@ func (db *KDB) Commit(tag uint32) error {
 func (db *KDB) Tag() (uint32, error) {
     db.mutex.RLock()
     defer db.mutex.RUnlock()
-    _, bct, ect, _, err := readHeader(db.storage)
+    if _, err := db.storage.Seek(0, 0); err != nil {
+        return 0, err
+    }
+    _, tag, _, err := readHeader(db.storage)
     if err != nil {
         return 0, err
-    } else if (bct != ect) {
-        return 0, errors.New("KDB:Tag beging/end commit tag don't match")
     }
-    return bct, nil
-}
-
-func (db *KDB) String() string {
-    return fmt.Sprintf("KDB:[capacity:%v, cursor:%v, scanCount:%v, slotReadCount:%v]",
-        db.capacity, db.cursor, db.stats.ScanCount(), db.stats.SlotReadCount())
+    return tag, nil
 }

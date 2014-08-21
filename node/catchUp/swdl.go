@@ -16,9 +16,9 @@ type swdl struct {
     begin       int
     end         int
     paral       int
-    workerLoad  int
+    load        int
     cursor      int
-    windowSize  int
+    size        int
     window      []interface{}
     chout       chan map[int]*blockchain.InvElement
     chin        chan map[int]interface{}
@@ -27,18 +27,27 @@ type swdl struct {
     wg          sync.WaitGroup
 }
 
-func newSwdl(begin int, end int, paral int, workerLoad int) *swdl {
-    // Open a window that wider than paral * workerLoad
-    wider := paral * 3
+func newSwdl(begin int, end int, paral int, load int) *swdl {
+    // Open a window that wider than paral * load
+    maxSlots := (end - begin) / load
+    slots := paral * 4
+    if slots > maxSlots {
+        slots = maxSlots
+    }
+    s := slots * load
+    if slots == 0 {
+        s = end - begin
+    }
+    log.Infof("newSwdl begin %d end %d winsize %d", begin, end, s)
     return &swdl{
         begin: begin,
         end: end,
         paral: paral,
-        workerLoad: workerLoad,
+        load: load,
         cursor: begin,
-        windowSize: workerLoad * (paral + wider),
+        size: s,
         window: make([]interface{}, 0),
-        chout: make(chan map[int]*blockchain.InvElement, wider),
+        chout: make(chan map[int]*blockchain.InvElement),
         chin: make(chan map[int]interface{}),
         chblock: make(chan struct{btcmsg.Message; I int}),
         done: make(chan struct{}),
@@ -55,6 +64,11 @@ func (sw *swdl) start() {
 
     sw.chin <- nil // Trigger downloading
     sw.wg.Wait()
+
+    db := cold.Get().OutputDB()
+    if err := db.Commit(uint32(sw.end-1),true); err != nil {
+        log.Panicf("db commit error: %s", err)
+    }
     log.Infof("Finished downloading from %d to %d", sw.begin, sw.end)
 }
 
@@ -119,7 +133,7 @@ func (sw *swdl) schedule(msgs map[int]interface{}) {
     sw.window = sw.window[dist:]
     sw.cursor += dist
     l := len(sw.window)
-    for i := l; i < sw.windowSize; i++ {
+    for i := l; i < sw.size; i++ {
         p := sw.cursor + i
         if p >= sw.end {
             break
@@ -132,30 +146,45 @@ func (sw *swdl) schedule(msgs map[int]interface{}) {
     }
     // 3. Handle unfinished work
     unfinished := make(map[int]*blockchain.InvElement)
+
+    qqq := 0
     for i, elem := range sw.window {
         if ie, ok := elem.(*blockchain.InvElement); ok {
             unfinished[sw.cursor+i] = ie
         }
+
+        if _, ok := elem.(btcmsg.Message); ok {
+            qqq++
+        }
     }
     l = len(unfinished)
+    log.Debugf("unfinished windowsize %d %d got:%d sw.cursor %d", l, len(sw.window), qqq, sw.cursor)
     if l == 0 { // No blocks left, do nothing
-    } else if l <= sw.workerLoad {
-        for k, _ := range unfinished {
-            sw.window[k-sw.cursor] = nil // nil in window means "in process"
-        }
-        sw.chout <- unfinished
+    } else if l <= sw.load {
+        sw.sendWork(unfinished)
     } else {
-        job := make(map[int]*blockchain.InvElement)
+        work := make(map[int]*blockchain.InvElement)
         for k, v := range unfinished {
-            job[k] = v
-            if len(job) >= sw.workerLoad {
-                for k, _ := range job {
-                    sw.window[k-sw.cursor] = nil
+            work[k] = v
+            if len(work) >= sw.load {
+                if !sw.sendWork(work) { // channel is full
+                    break
                 }
-                sw.chout <- job
-                job = make(map[int]*blockchain.InvElement)
+                work = make(map[int]*blockchain.InvElement)
             }
         }
+    }
+}
+
+func (sw *swdl) sendWork(w map[int]*blockchain.InvElement) bool {
+    select {
+    case sw.chout <- w:
+        for k, _ := range w {
+            sw.window[k-sw.cursor] = nil // nil in window means "in process"
+        }
+        return true
+    default:
+        return false
     }
 }
 
@@ -199,7 +228,7 @@ func saveBlock(m btcmsg.Message, i int, verify bool) {
             log.Panicf("Process tx %s error: %s", ctx.Hash(), err)
         }
     }
-    if err := db.Commit(uint32(i)); err != nil {
+    if err := db.Commit(uint32(i),false); err != nil {
         log.Panicf("db commit error: %s", err)
     }
 }

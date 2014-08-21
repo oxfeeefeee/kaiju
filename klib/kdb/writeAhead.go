@@ -2,13 +2,10 @@ package kdb
 
 import (
     "io"
-    "errors"
     "encoding/gob"
-    "encoding/binary"
-    "github.com/oxfeeefeee/kaiju/klib"
     )
 
-// Write-ahead data, 
+// Write-ahead data
 type waData struct {
     Keys        map[int64]keyData
     ValData     []byte
@@ -43,44 +40,41 @@ func (wa *waData) clear() {
 }
 
 func (db *KDB) commit(tag uint32) error {
-    // 1. Save write-ahead data.
-    if err := db.saveWAData(); err != nil {
+    if err := db.saveWAData(tag); err != nil {
         return err
     }
-    // 2. Mark commit begin
-    if err := db.beginWACommit(tag); err != nil {
-        return err
-    }
-    // 3. commit
-    if err := db.commitWAData(); err != nil {
-        return err
-    }
-    // 4. Mark commit end
-    if err := db.endWACommit(tag); err != nil {
-        return err
-    }
-    return nil
+    return db.commitWAData(tag)
 }
 
-func (db *KDB) saveWAData() error {
-    if _, err := db.storage.Seek(HeaderSize, 0); err != nil {
+func (db *KDB) saveWAData(tag uint32) error {
+    if _, err := db.was.Seek(HeaderSize, 0); err != nil {
         return err
     }
-    lw := klib.NewLWriter(db.storage, WADataSize)
-    if err := db.wa.save(lw); err != nil {
+    if err := db.wa.save(db.was); err != nil {
         return err
     }
-    return db.storage.Sync()
+    if err := db.was.Sync(); err != nil {
+        return err
+    }
+    // Now save the heade of kdb at the end
+    if _, err := db.was.Seek(0, 0); err != nil {
+        return err
+    }
+    cursor := db.cursor + int64(len(db.wa.ValData))
+    if err := writeHeader(db.was, db.Stats, tag, cursor); err != nil {
+        return err
+    }
+    return db.was.Sync()
 }
 
 func (db *KDB) loadWAData() error {
-    if _, err := db.storage.Seek(HeaderSize, 0); err != nil {
+    if _, err := db.was.Seek(HeaderSize, 0); err != nil {
         return err
     }
-    return db.wa.load(db.storage)
+    return db.wa.load(db.was)
 }
 
-func (db *KDB) commitWAData() error {
+func (db *KDB) commitWAData(tag uint32) error {
     for n, k := range db.wa.Keys {
         if _, err := writeAt(db.storage, db.slotsBeginPos() + n * SlotSize, k); err != nil {
             return err
@@ -95,32 +89,11 @@ func (db *KDB) commitWAData() error {
     }
     db.cursor += n
     db.wa.clear()
-    return nil
-}
-
-// Write begin_commit_tag
-func (db *KDB) beginWACommit(tag uint32) error {
-    p := make([]byte, 4)
-    if _, err := readAt(db.storage, beginCommitTagPos, p); err != nil {
+    // Update header to the end of committing
+    if _, err := db.storage.Seek(0, 0); err != nil {
         return err
     }
-    oldTag := binary.LittleEndian.Uint32(p)
-    if tag == oldTag {
-        return errors.New("Commit tag is the same as old tag.")
-    }
-    binary.LittleEndian.PutUint32(p, tag)
-    if _, err := writeAt(db.storage, beginCommitTagPos, p); err != nil {
-        return err
-    }
-    return db.storage.Sync()
-}
-
-// Write end_commit_tag
-func (db *KDB) endWACommit(tag uint32) error {
-    p := make([]byte, 12)
-    binary.LittleEndian.PutUint32(p, tag)
-    binary.LittleEndian.PutUint64(p[4:], uint64(db.cursor))
-    if _, err := writeAt(db.storage, endCommitTagPos, p); err != nil {
+    if err := writeHeader(db.storage, db.Stats, tag, db.cursor); err != nil {
         return err
     }
     return db.storage.Sync()

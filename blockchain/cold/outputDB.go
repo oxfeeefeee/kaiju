@@ -3,6 +3,7 @@ package cold
 import (
     "bytes"
     "errors"
+    "github.com/oxfeeefeee/kaiju"
     "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/klib/kdb"
@@ -43,8 +44,8 @@ func (u *outputDB) Add(h *klib.Hash256, i uint32, val []byte) error {
     return u.db.Add(key, val)
 }
 
-func (u *outputDB) Commit(tag uint32) error {
-    if u.db.WAFull() {
+func (u *outputDB) Commit(tag uint32, force bool) error {
+    if force || u.db.WAValueLen() > kaiju.GetConfig().MaxKdbWAValueLen {
         log.Infof("Committing blocks up to number %d ...", tag)
         err := u.db.Commit(tag)
         log.Infof("Committed blocks up to number %d", tag)

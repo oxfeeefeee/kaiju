@@ -1,66 +1,40 @@
 package kdb
 
 import (
-    "sync"
+    "fmt"
 )
 
 type Stats struct {
-    // How many slots are occupied, including slots that are marked as deleted
-    occupiedSlotCount   int64
-    // How many entries in this DB recordCount = occupiedSlotCount - slots_occupied_by_deleted_items
-    recordCount         int64
-    // How many scan operations did in total
-    scanCount           int64
-    // How many slot-read did
-    slotReadCount       int64
-    // Thread safety
-    mutex               sync.RWMutex
+    capacity        uint32
+    // valid records
+    records         uint32
+    // Slots that are occupied by deleted keys
+    deadSlots       uint32
+    // Values marked as deleted
+    deadValues      uint32
 }
 
-func (s *Stats) OccupiedSlotCount() int64 {
-    s.mutex.RLock()
-    defer s.mutex.RUnlock()
-    return s.occupiedSlotCount
+func (s *Stats) String() string {
+    f := "KDB Stats:[capacity:%d, records:%d deadSlots:%d, deadValues:%d]"
+    return fmt.Sprintf(f, s.capacity, s.records, s.records, s.deadValues)      
 }
 
-func (s *Stats) RecordCount() int64 {
-    s.mutex.RLock()
-    defer s.mutex.RUnlock()
-    return s.recordCount
+func (s *Stats) Saturation() float32 {
+    return float32((s.records + s.deadSlots)  * 10000 / s.capacity) / 100.0
 }
 
-func (s *Stats) ScanCount() int64 {
-    s.mutex.RLock()
-    defer s.mutex.RUnlock()
-    return s.scanCount
+func (s *Stats) Capacity() uint32 {
+    return s.capacity
 }
 
-func (s *Stats) SlotReadCount() int64 {
-    s.mutex.RLock()
-    defer s.mutex.RUnlock()
-    return s.slotReadCount
+func (s *Stats) Records() uint32 {
+    return s.records
 }
 
-func (s *Stats) incOccupiedSlotCount() {
-    s.mutex.Lock()
-    defer s.mutex.Unlock()
-    s.occupiedSlotCount++
+func (s *Stats) DeadSlots() uint32 {
+    return s.deadSlots
 }
 
-func (s *Stats) incRecordCount() {
-    s.mutex.Lock()
-    defer s.mutex.Unlock()
-    s.recordCount++
-}
-
-func (s *Stats) incScanCount() {
-    s.mutex.Lock()
-    defer s.mutex.Unlock()
-    s.scanCount++
-}
-
-func (s *Stats) incSlotReadCount() {
-    s.mutex.Lock()
-    defer s.mutex.Unlock()
-    s.slotReadCount++
+func (s *Stats) DeadValues() uint32 {
+    return s.deadValues
 }

@@ -10,10 +10,15 @@ import (
 const configFileName = "config.json"
 
 type Config struct {
-    SeedPeers       []string
-    DataDir         string
-    TempDataDir     string
-    LogFileName     string
+    SeedPeers           []string
+    DataDir             string
+    TempDataDir         string
+    LogFileName         string
+    HeadersFileName     string
+    KdbFileName         string
+    KdbWAFileName       string
+    MaxKdbWAValueLen    int
+    KDBCapacity         uint32
 }
 
 var cfg *Config

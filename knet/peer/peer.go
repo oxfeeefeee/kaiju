@@ -14,7 +14,7 @@ const SendQueueSize = 2
 
 const defaultSendMsgTimeout = time.Second * 10
 
-const defaultExpectMsgTimeout = time.Second * 10
+const defaultExpectMsgTimeout = time.Second * 20
 
 const timeToPing = time.Second * 60
 

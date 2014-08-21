@@ -6,6 +6,7 @@ import (
     "errors"
     "bytes"
     "encoding/binary"
+    "github.com/oxfeeefeee/kaiju/log"
 )
 
 type handleValue func(value []byte, multiVal bool) error
@@ -22,7 +23,7 @@ func (db *KDB) slotScan(key []byte, hi handleItem, hv handleValue) (int64, error
     if i >= t {
         panic("KDB.findEmptySlot: slot number >= slot count")
     }
-    db.stats.incScanCount()
+    //db.stats.incScanCount()
     for {
         reachedEnd := false
         size := int64(SlotBatchReadSize)
@@ -32,7 +33,7 @@ func (db *KDB) slotScan(key []byte, hi handleItem, hv handleValue) (int64, error
         }
         
         buf := make([]byte, size * SlotSize, size * SlotSize)
-        db.stats.incSlotReadCount()
+        //db.stats.incSlotReadCount()
         _, err := readAt(db.storage, db.slotsBeginPos() + i * SlotSize, buf)
         if err != nil {
             return 0, err
@@ -176,27 +177,9 @@ func (db *KDB) writeKey(key keyData, slotNum int64) {
     db.wa.addKey(key, slotNum)
 }
 
-func (db *KDB) writeHeader() error {
-    p := []byte{'K', 'D', 'B', Version, 0, 0, 0, 0}
-    binary.LittleEndian.PutUint32(p[4:], uint32(db.capacity))
-    p2 := make([]byte, HeaderSize)
-    copy(p2, p)
-    cursor := HeaderSize + WADataSize + int64(db.capacity) * 2 * SlotSize
-    cp := savedCursorPos
-    binary.LittleEndian.PutUint64(p2[cp:cp+8], uint64(cursor))
-    n, err := writeAt(db.storage, 0, p2)
-    if err == nil {
-        db.cursor += int64(n)
-    }
-    return err
-}
-
-// Three sections to be written here:
-// - Write ahead data (size = WADataSize)
-// - Slot section (size = SlotSize * 2 * Capacity)
+// Write slot section (size = SlotSize * 2 * Capacity)
 func (db *KDB) writeBlankSections() error {
     s := int64(db.capacity) * 2 * SlotSize
-    s += int64(WADataSize)
     return db.writeBlank(1024 * 8, s)
 }
 
@@ -216,14 +199,11 @@ func (db *KDB) writeBlank(batchSize int64, totalSize int64) error {
         left -= bs
         cur += bs
     }
-    db.cursor += totalSize
     return nil
 }
 
 func (db *KDB) dataLoc() uint32 {
-    // Calculate valueLoc: with which data will be found
     valuePtr := db.cursor - db.dataBeginPos() + int64(len(db.wa.ValData))
-    // DataLen unit is DefaultValueLen, so (valuePtr % DefaultValueLen) === 0
     if (valuePtr % DefaultValueLen) != 0 {
         panic("KDB.addRecord: (valuePtr % DefaultValueLen) != 0")
     } 
@@ -231,7 +211,7 @@ func (db *KDB) dataLoc() uint32 {
 }
 
 func (db *KDB) slotsBeginPos() int64 {
-    return HeaderSize + WADataSize
+    return HeaderSize
 }
 
 func (db *KDB) dataBeginPos() int64 {
@@ -244,48 +224,64 @@ func (db *KDB) slotCount() int64 {
 }
 
 func readAt(r io.ReadSeeker, c int64, p []byte) (int64, error) {
-    _, err := r.Seek(c, 0)
-    if err != nil {
+    if _, err := r.Seek(c, 0); err != nil {
         return 0, err
     }
     n, err := r.Read(p)
-    if err != nil{
-    }
     return int64(n), err
 }
 
 func writeAt(w io.WriteSeeker, c int64, p []byte) (int64, error) {
-    _, err := w.Seek(c, 0)
-    if err != nil {
+    if _, err := w.Seek(c, 0); err != nil {
         return 0, err
     }
     n, err := w.Write(p)
     return int64(n), err
 }
 
-// Returns capacity, beginCommitTag, endCommitTag, cursor
-func readHeader(s Storage) (uint32, uint32, uint32, int64, error) {
+func writeHeader(s Storage, sta *Stats, tag uint32, cursor int64) error {
+    p := make([]byte, 0, HeaderSize)
+    buf := bytes.NewBuffer(p)
+    binary.Write(buf, binary.LittleEndian, []byte{'K', 'D', 'B', Version})
+    binary.Write(buf, binary.LittleEndian, sta.capacity)
+    binary.Write(buf, binary.LittleEndian, sta.records)
+    binary.Write(buf, binary.LittleEndian, sta.deadSlots)
+    binary.Write(buf, binary.LittleEndian, sta.deadValues)
+    binary.Write(buf, binary.LittleEndian, tag)
+    binary.Write(buf, binary.LittleEndian, cursor)
+    _, err := s.Write(buf.Bytes())
+    return err
+}
+
+// Returns *Stats, tag, cursor
+func readHeader(s Storage) (*Stats, uint32, int64, error) {
     errInvalid := errors.New("Invalid KDB header")
     p := make([]byte, HeaderSize)
-    if _, err := readAt(s, 0, p); err != nil {
-        return 0, 0, 0, 0, err
+    if _, err := s.Read(p); err != nil {
+        return nil, 0, 0, err
     }
     if p[0] != 'K' || p[1] != 'D' || p[2] != 'B' {
-        return 0, 0, 0, 0, errInvalid
+        return nil, 0, 0, errInvalid
     }
     if Version != p[3] {
-        return 0, 0, 0, 0, errInvalid   
+        return nil, 0, 0, errInvalid   
     }
-    capacity := binary.LittleEndian.Uint32(p[4:8])
-    if capacity <= 0 {
-        return 0, 0, 0, 0, errInvalid
+    buf := bytes.NewBuffer(p[4:])
+    stats := new(Stats)
+    var tag uint32
+    var cursor int64
+    binary.Read(buf, binary.LittleEndian, &stats.capacity)
+    binary.Read(buf, binary.LittleEndian, &stats.records)
+    binary.Read(buf, binary.LittleEndian, &stats.deadSlots)
+    binary.Read(buf, binary.LittleEndian, &stats.deadValues)
+    binary.Read(buf, binary.LittleEndian, &tag)
+    binary.Read(buf, binary.LittleEndian, &cursor)
+    if stats.capacity <= 0 {
+        return nil, 0, 0, errInvalid
+    } else if cursor < HeaderSize + int64(stats.capacity) * 2 * SlotSize {
+        return nil, 0, 0, errInvalid   
     }
-    bc, ec, cu := beginCommitTagPos, endCommitTagPos, savedCursorPos
-    bcTag := binary.LittleEndian.Uint32(p[bc:bc+4])
-    ecTag := binary.LittleEndian.Uint32(p[ec:ec+4])
-    cursor := int64(binary.LittleEndian.Uint64(p[cu:cu+8]))
-    if cursor < HeaderSize + WADataSize + int64(capacity) * 2 * SlotSize {
-        return 0, 0, 0, 0, errInvalid   
-    }
-    return capacity, bcTag, ecTag, cursor, nil
+    log.Infof("kdb readHeader: capacity %d records %d deadSlots %d deadValues %d tag %d cursor %d",
+        stats.capacity, stats.records, stats.deadSlots, stats.deadValues, tag, cursor)
+    return stats, tag, cursor, nil
 }

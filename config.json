@@ -1,5 +1,24 @@
 {
-    "SeedPeers" :
+    "DataDir": "./_nogit/data/",
+
+    "TempDataDir": "./_nogit/kdbtemp/",
+
+    "LogFileName": "KaijuLog.txt",
+
+    "HeadersFileName": "headers.dat",
+
+    "KdbFileName": "kdb.dat",
+
+    "KdbWAFileName": "kdb.wa",
+
+    "__comment_MaxWAValueLen": "20 * 1024 * 1024",
+    "MaxKdbWAValueLen": 20971520,
+
+    "__comment_MaxWAValueLen": "20 * 1024 * 1024",
+    "KDBCapacity": 20971520,
+
+
+    "SeedPeers":
         ["85.25.92.119",
         "86.143.177.201",
         "72.215.196.67",
@@ -11,8 +30,5 @@
         "183.221.158.74",
         "76.173.49.161",
         "209.239.118.179",
-        "2.26.41.148"],
-    "DataDir":"./_nogit/data/",
-    "TempDataDir": "./_nogit/kdbtemp/",
-    "LogFileName":"KaijuLog.txt"
+        "2.26.41.148"]
 }
