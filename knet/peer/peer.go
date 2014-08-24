@@ -33,7 +33,8 @@ type msgSent struct {
 // Descriptor of message being expected
 type msgExpector struct {
     filter      MsgFilter
-    timeout     time.Duration
+    timer       *time.Timer
+    done        chan struct{}
     retChan     chan struct{btcmsg.Message; Error error}
 }
 
@@ -121,25 +122,29 @@ func (p *Peer) expectMsg(f MsgFilter, timeout time.Duration, ch chan struct{btcm
     if timeout <= 0 {
         timeout = defaultExpectMsgTimeout
     }
-    exp := &msgExpector{f, timeout, ch}
+    exp := &msgExpector{f, time.NewTimer(timeout), make(chan struct{}), ch}
     p.expMutex.Lock()
     p.expectors = append(p.expectors, exp)
     p.expMutex.Unlock()
 
     // Remove the expector at time out
     go func(){
-        <-time.After(exp.timeout)
-        p.expMutex.Lock()
-        defer p.expMutex.Unlock()
-        exps := p.expectors
-        for i, e := range exps {
-            if e == exp {
-                e.retChan <-struct{btcmsg.Message; Error error}{
-                    nil, errors.New("Peer ExpectMsg timeout")}
-                // Delete the expector
-                p.expectors = append(exps[:i], exps[i+1:]...)
-                return
-            }
+        select {
+        case <- exp.timer.C:
+            p.expMutex.Lock()
+            defer p.expMutex.Unlock()
+            exps := p.expectors
+            for i, e := range exps {
+                if e == exp {
+                    e.retChan <-struct{btcmsg.Message; Error error}{
+                        nil, errors.New("Peer ExpectMsg timeout")}
+                    // Delete the expector
+                    p.expectors = append(exps[:i], exps[i+1:]...)
+                    return
+                }
+            }   
+        case <- exp.done:
+            return
         }
     }()
 }
@@ -267,6 +272,7 @@ func (p *Peer) handleMessage(msg btcmsg.Message) bool {
                 e.retChan <-struct{btcmsg.Message; Error error}{msg, nil}
                 // Delete the expector
                 if stop {
+                    close(e.done)
                     p.expectors = append(exps[:i], exps[i+1:]...)    
                 }
                 return true

@@ -1,8 +1,9 @@
-// Sliding window downloading -- Fast parallel block downloading
+// Sliding window download -- Fast parallel block downloading
 package catchUp 
 
 import (
     "sync"
+    "time"
     "github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma"
@@ -24,6 +25,7 @@ type swdl struct {
     chin        chan map[int]interface{}
     chblock     chan struct{btcmsg.Message; I int}
     done        chan struct{}
+    ca          *swdlca
     wg          sync.WaitGroup
 }
 
@@ -51,6 +53,7 @@ func newSwdl(begin int, end int, paral int, load int) *swdl {
         chin: make(chan map[int]interface{}),
         chblock: make(chan struct{btcmsg.Message; I int}),
         done: make(chan struct{}),
+        ca: newSwdlca(),
     }
 }
 
@@ -82,7 +85,7 @@ func (sw *swdl) doSchedule() {
             running = false
         }   
     }
-    sw.chblock <- struct{btcmsg.Message; I int}{nil, 0} // To end doSaveBlock
+    close(sw.chblock) // To end doSaveBlock
 }
 
 func (sw *swdl) doDownload() {
@@ -90,7 +93,12 @@ func (sw *swdl) doDownload() {
     for running {
         select {
         case req := <- sw.chout:
-            sw.chin <- download(req)
+            if req != nil {
+                sw.chin <- download(req)
+            } else {
+                time.Sleep(30 * time.Second)
+                sw.chin <- nil
+            }
         case <- sw.done:
             running = false
         }     
@@ -100,11 +108,7 @@ func (sw *swdl) doDownload() {
 
 func (sw *swdl) doSaveBlock() {
     defer sw.wg.Done()
-    for {
-        bm := <- sw.chblock
-        if bm.Message == nil {
-            break
-        }
+    for bm := range sw.chblock {
         saveBlock(bm.Message, bm.I, false)
     }
     log.Infoln("doSaveBlock exit")
@@ -112,11 +116,27 @@ func (sw *swdl) doSaveBlock() {
 
 func (sw *swdl) schedule(msgs map[int]interface{}) {
     // 1. Fill blanks with downloaded blocks
+    got := 0
     for k, v := range msgs {
         i := k - sw.cursor
-        sw.window[i] = v
+        if _, ok := v.(*btcmsg.Message_block); ok {
+            got++
+        }
+        // Do these checks because we might send same work to different workers
+        // otherwise we should simple write "sw.window[i] = v"
+        if i < 0 || i >= len(sw.window){
+            continue
+        } else if _, ok := sw.window[i].(*btcmsg.Message_block); !ok {
+            sw.window[i] = v
+        }
     }
-    // 2. Slide window and process blocks
+    // 2. Congestion control
+    if len(msgs) > 0 && sw.ca.update(got, len(msgs)) {
+        // Send nil for a "NOP" download
+        sw.sendWork(nil)
+        return
+    }
+    // 3. Slide window and process blocks
     dist := len(sw.window) // Slide distance
     for i, elem := range sw.window {
         if bm, ok := elem.(*btcmsg.Message_block); ok {
@@ -144,23 +164,21 @@ func (sw *swdl) schedule(msgs map[int]interface{}) {
     if len(sw.window) == 0 {
         close(sw.done)// All blocks downloaded
     }
-    // 3. Handle unfinished work
+    // 4. Handle unfinished work
     unfinished := make(map[int]*blockchain.InvElement)
-
-    qqq := 0
     for i, elem := range sw.window {
         if ie, ok := elem.(*blockchain.InvElement); ok {
             unfinished[sw.cursor+i] = ie
         }
-
-        if _, ok := elem.(btcmsg.Message); ok {
-            qqq++
-        }
     }
     l = len(unfinished)
-    log.Debugf("unfinished windowsize %d %d got:%d sw.cursor %d", l, len(sw.window), qqq, sw.cursor)
+    if len(msgs) > 0 {
+        log.Debugf("winsize %d left %d got %d cursor %d health %f", len(sw.window), l, got, sw.cursor, sw.ca.health)
+    }
     if l == 0 { // No blocks left, do nothing
     } else if l <= sw.load {
+        // Not much left, send twice to slide the window faster
+        sw.sendWork(unfinished)
         sw.sendWork(unfinished)
     } else {
         work := make(map[int]*blockchain.InvElement)

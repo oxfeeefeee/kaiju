@@ -15,7 +15,10 @@ import (
 )
   
 func cookUint32(key uint32, value uint32)([]byte, []byte) {
-    kbuf, vbuf := make([]byte, 8, 8), make([]byte, 4, 4)
+    kbuf, vbuf := make([]byte, 8), make([]byte, ValLenUnit)
+    if key %3 == 0 {
+        vbuf = make([]byte, ValLenUnit+1)
+    }
     binary.LittleEndian.PutUint32(kbuf[:], uint32(0))
     binary.LittleEndian.PutUint32(kbuf[4:], key)
     //hash := sha256.Sum256(kbuf[0:4])
@@ -83,14 +86,35 @@ func TestMemoryKDB(t *testing.T) {
     buf := klib.NewMemFile(50 * 1024 * 1024)
     wa := klib.NewMemFile(50 * 1024 * 1024)
 
-    //capacity := uint32(10)
-    capacity := uint32(200000)
+    capacity := uint32(1000)
+    //capacity := uint32(200000)
     db, err := New(capacity, buf, wa)
     if err != nil {
         t.Errorf("Failed to create KDB: %s", err)
     }
     for i:=uint32(0); i < capacity; i++ {
         writeUint32(t, db, uint32(i), uint32(i))  
+    }
+    if err := db.Commit(capacity); err != nil {
+        t.Errorf("Failed to commit: %s", err)
+    }
+    for i:=uint32(0); i < capacity/2; i++ {
+        removeUint32(t, db, uint32(i), uint32(i))  
+    }
+    if err := db.Commit(capacity); err != nil {
+        t.Errorf("Failed to commit: %s", err)
+    }
+    for i:=uint32(0); i < capacity/2; i++ {
+        testNotUint32(t, db, uint32(i), uint32(i))  
+    }
+    for i:=capacity/2; i < capacity; i++ {
+        testUint32(t, db, uint32(i), uint32(i))  
+    }
+    for i:=uint32(0); i < capacity/2; i++ {
+        writeUint32(t, db, uint32(i), uint32(i))  
+    }
+    if err := db.Commit(capacity); err != nil {
+        t.Errorf("Failed to commit: %s", err)
     }
     for i:=uint32(0); i < capacity; i++ {
         testUint32(t, db, uint32(i), uint32(i))  
@@ -106,7 +130,7 @@ func TestMemoryKDB(t *testing.T) {
     if err != nil {
         t.Errorf("Failed to rebuild db %s", err)
     }
-    for i:=uint32(0); i < capacity; i++ {
+    for i:=capacity/2; i < capacity; i++ {
         testUint32(t, db2, uint32(i), uint32(i))  
     }
     t.Log("KDB:",db2)

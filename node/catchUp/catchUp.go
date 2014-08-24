@@ -16,6 +16,8 @@ func CatchUp() {
     headersCatchUp()
 
     blocksCatchUp()
+    //dl := newSwdl(297333, 297334, 100, 1)
+    //dl.start() 
 }
 
 func headersCatchUp() {

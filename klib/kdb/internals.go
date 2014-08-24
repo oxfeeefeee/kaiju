@@ -149,8 +149,11 @@ func (db *KDB) readValue(ptr uint32, unitLen bool) ([]byte, bool, error) {
     }
 }
 
-func (db *KDB) writeValue(value []byte, multiVal bool) {
-    if len(value) == ValLenUnit && !multiVal {
+func (db *KDB) writeValue(value []byte, unitLen bool, multiVal bool) {
+    if unitLen && !multiVal {
+        if len(value) != ValLenUnit {
+            panic("KDB.writeValue trying to write non-ValLenUnit data as ValLenUnit")
+        }
         db.wa.addValue(value)
     } else {
         vl := len(value)
@@ -253,11 +256,16 @@ func writeAt(w io.WriteSeeker, c int64, p []byte) (int64, error) {
 func writeHeader(s Storage, sta *Stats, tag uint32, cursor int64) error {
     p := make([]byte, 0, HeaderSize)
     buf := bytes.NewBuffer(p)
-    binary.Write(buf, binary.LittleEndian, []byte{'K', 'D', 'B', Version})
+    consts := []byte{'K', 'D', 'B', Version, 
+        SlotSize, ValLenUnit, HeaderSize, 0,}
+    binary.Write(buf, binary.LittleEndian, consts)
     binary.Write(buf, binary.LittleEndian, sta.capacity)
     binary.Write(buf, binary.LittleEndian, sta.records)
     binary.Write(buf, binary.LittleEndian, sta.deadSlots)
     binary.Write(buf, binary.LittleEndian, sta.deadValues)
+    for i := 0; i < 6; i++ { //reserved space
+        binary.Write(buf, binary.LittleEndian, int32(0))
+    }
     binary.Write(buf, binary.LittleEndian, tag)
     binary.Write(buf, binary.LittleEndian, cursor)
     _, err := s.Write(buf.Bytes())
@@ -271,13 +279,13 @@ func readHeader(s Storage) (*Stats, uint32, int64, error) {
     if _, err := s.Read(p); err != nil {
         return nil, 0, 0, err
     }
-    if p[0] != 'K' || p[1] != 'D' || p[2] != 'B' {
+    if p[0] != 'K' || p[1] != 'D' || p[2] != 'B' || Version != p[3] {
         return nil, 0, 0, errInvalid
     }
-    if Version != p[3] {
+    if SlotSize != p[4] || ValLenUnit != p[5] || HeaderSize != p[6] {
         return nil, 0, 0, errInvalid   
     }
-    buf := bytes.NewBuffer(p[4:])
+    buf := bytes.NewBuffer(p[8:])
     stats := new(Stats)
     var tag uint32
     var cursor int64
@@ -285,6 +293,10 @@ func readHeader(s Storage) (*Stats, uint32, int64, error) {
     binary.Read(buf, binary.LittleEndian, &stats.records)
     binary.Read(buf, binary.LittleEndian, &stats.deadSlots)
     binary.Read(buf, binary.LittleEndian, &stats.deadValues)
+    for i := 0; i < 6; i++ { //reserved space 
+        var n int32
+        binary.Read(buf, binary.LittleEndian, &n)
+    }
     binary.Read(buf, binary.LittleEndian, &tag)
     binary.Read(buf, binary.LittleEndian, &cursor)
     if stats.capacity <= 0 {

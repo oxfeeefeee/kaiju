@@ -3,14 +3,15 @@ package catma
 
 import (
     "errors"
+    //"github.com/oxfeeefeee/kaiju/log"
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma/script"
 )
 
 type UtxoSet interface {
-    Get(h *klib.Hash256, i uint32) ([]byte, error)
-    Use(h *klib.Hash256, i uint32, val []byte) error
-    Add(h *klib.Hash256, i uint32, val []byte) error
+    Get(h *klib.Hash256, i uint32) (*TxOut, error)
+    Use(h *klib.Hash256, i uint32, txo *TxOut) error
+    Add(h *klib.Hash256, i uint32, txo *TxOut) error
 }
 
 func VerifyTx(tx *Tx, utxo UtxoSet, preBip16 bool, standard bool, pseudo bool) error {
@@ -23,14 +24,10 @@ func VerifyTx(tx *Tx, utxo UtxoSet, preBip16 bool, standard bool, pseudo bool) e
     if !tx.IsCoinBase() {
         for i, txi := range tx.TxIns {
             op := &(txi.PreviousOutput)
-            opBytes, err := utxo.Get(&op.Hash, op.Index)
+            txo, err := utxo.Get(&op.Hash, op.Index)
             if err != nil {
                 return err
-            } else if opBytes == nil {
-                return errors.New("VerifyTx: Cannot find input.")
             }
-            var txo TxOut
-            txo.FromBytes(opBytes)
             if !pseudo {
                 err = VerifyInput(txo.PKScript, tx, i, preBip16, standard)
                 if err != nil {
@@ -48,7 +45,7 @@ func VerifyTx(tx *Tx, utxo UtxoSet, preBip16 bool, standard bool, pseudo bool) e
     }
     hash := tx.Hash()
     for i, txo := range tx.TxOuts {
-        err := utxo.Add(hash, uint32(i), txo.Bytes())
+        err := utxo.Add(hash, uint32(i), txo)
         if err != nil {
             return err
         }

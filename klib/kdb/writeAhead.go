@@ -56,7 +56,7 @@ func (db *KDB) saveWAData(tag uint32) error {
     if err := db.was.Sync(); err != nil {
         return err
     }
-    // Now save the heade of kdb at the end
+    // Now write the header of kdb
     if _, err := db.was.Seek(0, 0); err != nil {
         return err
     }

@@ -5,24 +5,33 @@ import (
     "math"
     "errors"
     "encoding/binary"
-    //"github.com/oxfeeefeee/kaiju/log"
+    "github.com/oxfeeefeee/kaiju/log"
 )
-
-// For value that with length of ValLenUnit, we make a mark and do not record the length
-const ValLenUnit = 20
-
-// Internal key size
-const InternalKeySize = 6
-
-// The slot size is 10, in which 6 bytes is KeySize and 4 bytes is the data pointer.
-const SlotSize = 10
 
 // File format version number
 const Version = 1
 
+// The slot size is 10, in which 6 bytes is KeySize and 4 bytes is the data pointer.
+const SlotSize = 10
+
+// For value that with length of ValLenUnit, we make a mark and do not record the length
+const ValLenUnit = 29
+
 // The size of header in bytes
-//3_"KDB" + 1_version + 4*4_stats + commitTag + 8_cursor
-const HeaderSize = 3 + 1 + 4 * 4 + 4 + 8
+// 3 "KDB"
+// 1 Version
+// 1 SlotSize
+// 1 ValLenUnit
+// 1 HeaderSize
+// 1 padding
+// 4*4 stats
+// 4*6 statsReserved
+// 4 commitTag
+// 8 cursor
+const HeaderSize = 8 + 4 * 10 + 4 + 8
+
+// Internal key size
+const InternalKeySize = 6
 
 // How many slot we read at one time
 const SlotBatchReadSize = 64
@@ -130,7 +139,7 @@ func (db *KDB) Add(key []byte, value []byte) error {
     n, err := db.slotScan(kdata, nil, 
         func(val []byte, mv bool) error {
             collision = true // We hit an internal key collision 
-            //log.Debugf("Internal key collision happened")
+            log.Debugf("Internal key collision happened")
             var cd collisionData
             if mv {
                 cd.fromBytes(val)
@@ -145,11 +154,12 @@ func (db *KDB) Add(key []byte, value []byte) error {
         return err
     }
     c := make([]byte, SlotSize, SlotSize)
-    kdata.setFlags(len(value) == ValLenUnit)
+    ul := (len(value) == ValLenUnit)
+    kdata.setFlags(ul)
     copy(c[:InternalKeySize], kdata[:])
     binary.LittleEndian.PutUint32(c[InternalKeySize:], db.dataLoc())
     db.writeKey(c, n)
-    db.writeValue(value, collision)
+    db.writeValue(value, ul, collision)
     return nil
 }
 
@@ -199,13 +209,20 @@ func (db *KDB) Remove(key []byte) (bool, error) {
                 cd.remove(key)
                 if cd.len() == 1 {
                     val = cd.firstVal
+                    if len(val) == ValLenUnit {
+                        
+                    }
                     mv = false
+                    log.Debugln("KDB Remove keyCollision: From multi-val to val")
                 } else {
                     val = cd.toBytes()
+                    log.Debugln("KDB Remove keyCollision: From multi-val to multi-val")
                 }
+                ul := (len(val) == ValLenUnit)
+                slotData.setFlags(ul)
                 binary.LittleEndian.PutUint32(slotData[InternalKeySize:], db.dataLoc())
                 db.writeKey(slotData, slotNum)
-                db.writeValue(val, mv)
+                db.writeValue(val, ul, mv)
             } else {
                 if emptyFollow {
                     slotData.setEmpty()

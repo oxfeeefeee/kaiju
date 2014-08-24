@@ -66,7 +66,7 @@ func (db *KDB) Rebuild(capacity uint32, s Storage, was Storage) (*KDB, error) {
         }
         binary.LittleEndian.PutUint32(sd[InternalKeySize:], newdb.dataLoc())
         newdb.writeKey(sd, n)
-        newdb.writeValue(val, mv)
+        newdb.writeValue(val, keyData(sd).unitValLen(), mv)
         if i % 100000 == 0 {
             newdb.commit(i)
             log.Infof("KDB.Rebuild: current key count:%d", i)

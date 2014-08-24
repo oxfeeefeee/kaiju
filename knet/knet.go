@@ -56,8 +56,12 @@ func MsgForMsgs(m btcmsg.Message, handler MsgHandler, count int) error {
     h.SendMsg(m, 0)
     ch := h.ExpectMsg(
         func(m btcmsg.Message) (bool, bool) {
-            return handler(m), count == 0
-        }, time.Second * 20)
+            if acc := handler(m); !acc {
+                return false, false
+            } else {
+                return true, count <= 1
+            }
+        }, time.Second * 60)
     for count > 0 {
         ret := <- ch
         if ret.Error != nil {

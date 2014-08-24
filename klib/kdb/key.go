@@ -3,6 +3,7 @@ package kdb
 
 import (
     "crypto/sha256"
+    //"github.com/oxfeeefeee/kaiju/log"
 )
 
 // This slot is take either by key are deleted garbage key
@@ -23,6 +24,7 @@ type keyData []byte
 
 // Calculate mask, this is adding record so OccupiedMarkBitMask is always set
 func (key keyData) setFlags(defaultValLen bool) {
+    key.clearFlags()
     flags := uint8(occupiedBit)
     if !defaultValLen {
         flags |= nonUnitLenBit
@@ -66,8 +68,7 @@ func (key keyData) unitValLen() bool {
 func toInternal(fullKey []byte) keyData {
     key := sha256.Sum256(fullKey[:])
     //key := make([]byte, len(fullKey))
-    //copy(key, fullKey)
-    //key[2], key[3] , key[4] , key[5] = 0,0,0, 0
+    //copy(key, fullKey[:5])
 
     key[0] = key[0] & (^maskBits)
     return key[:InternalKeySize]
