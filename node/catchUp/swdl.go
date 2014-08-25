@@ -122,13 +122,7 @@ func (sw *swdl) schedule(msgs map[int]interface{}) {
         if _, ok := v.(*btcmsg.Message_block); ok {
             got++
         }
-        // Do these checks because we might send same work to different workers
-        // otherwise we should simple write "sw.window[i] = v"
-        if i < 0 || i >= len(sw.window){
-            continue
-        } else if _, ok := sw.window[i].(*btcmsg.Message_block); !ok {
-            sw.window[i] = v
-        }
+        sw.window[i] = v
     }
     // 2. Congestion control
     if len(msgs) > 0 && sw.ca.update(got, len(msgs)) {
@@ -177,8 +171,6 @@ func (sw *swdl) schedule(msgs map[int]interface{}) {
     }
     if l == 0 { // No blocks left, do nothing
     } else if l <= sw.load {
-        // Not much left, send twice to slide the window faster
-        sw.sendWork(unfinished)
         sw.sendWork(unfinished)
     } else {
         work := make(map[int]*blockchain.InvElement)
