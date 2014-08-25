@@ -36,7 +36,7 @@ const InternalKeySize = 6
 // How many slot we read at one time
 const SlotBatchReadSize = 64
 
-type Storage interface {
+type File interface {
     Seek(offset int64, whence int) (ret int64, err error)
     Read(b []byte) (n int, err error)
     Write(b []byte) (n int, err error)
@@ -51,23 +51,23 @@ type Storage interface {
 // 45bit key.
 // The solution is storing full key when there is a internal key collision.
 type KDB struct {
-    // Main storage of a file or a chuck of memory 
-    storage             Storage
-    // Storage for write-ahead data
-    was                 Storage
+    // Main storage could be an os.File or memFile
+    file                File
+    // File for write-ahead data
+    wafile                 File
     // Write ahead data
     wa                  waData
     // Current length, or the position to write next.
     cursor              int64
     // Mutex for the whole DB
     mutex               sync.RWMutex
-    // Mutex for the main storage
+    // Mutex for the main file
     smutex              sync.RWMutex
     // DB statistics
     *Stats
 }
 
-func New(capacity uint32, s Storage, was Storage) (*KDB, error) {
+func New(capacity uint32, f File, wafile File) (*KDB, error) {
     stats := &Stats{
         capacity: capacity,
         deadSlots: 0,
@@ -76,20 +76,20 @@ func New(capacity uint32, s Storage, was Storage) (*KDB, error) {
     }
     cursor := HeaderSize + int64(capacity) * 2 * SlotSize
     db := &KDB{ 
-        storage: s,
-        was: was,
+        file: f,
+        wafile: wafile,
         wa: waData{map[int64]keyData{}, []byte{},},
         cursor: cursor,
         Stats: stats,
     }
     // Write header and init slots
-    if err := writeHeader(s, stats, 0, cursor); err != nil {
+    if err := writeHeader(f, stats, 0, cursor); err != nil {
         return nil, err
     }
     if err := db.writeBlankSections(); err != nil {
         return nil, err
     }
-    if err := db.storage.Sync(); err != nil {
+    if err := db.file.Sync(); err != nil {
         return nil, err
     }
     // To generate a valid write ahead file
@@ -99,19 +99,19 @@ func New(capacity uint32, s Storage, was Storage) (*KDB, error) {
     return db, nil
 }
 
-func Load(s Storage, was Storage) (*KDB, error) {
-    stats, tag, cursor, err := readHeader(s)
+func Load(f File, wafile File) (*KDB, error) {
+    stats, tag, cursor, err := readHeader(f)
     if err != nil {
         return nil, err
     }
     db := &KDB{ 
-        storage: s,
-        was: was,
+        file: f,
+        wafile: wafile,
         wa: waData{map[int64]keyData{}, []byte{},},
         Stats: stats,
     }
     db.cursor = cursor
-    wastats, watag, _, err := readHeader(was)
+    wastats, watag, _, err := readHeader(wafile)
     if err != nil {
         return nil, err
     }
@@ -246,7 +246,7 @@ func (db *KDB) WAValueLen() int {
     return len(db.wa.ValData)
 }
 
-// Save data in memory to permanent storage
+// Save data in memory to permanent file
 func (db *KDB) Commit(tag uint32) error {
     db.mutex.Lock()
     defer db.mutex.Unlock()

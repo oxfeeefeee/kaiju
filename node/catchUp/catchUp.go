@@ -9,7 +9,7 @@ package catchUp
 
 import (
     "github.com/oxfeeefeee/kaiju/log"
-    "github.com/oxfeeefeee/kaiju/blockchain/cold"
+    "github.com/oxfeeefeee/kaiju/blockchain/storage"
 )
 
 func CatchUp() {
@@ -27,8 +27,8 @@ func headersCatchUp() {
 }
 
 func blocksCatchUp() {
-    total := cold.Get().Headers().Len()
-    db := cold.Get().OutputDB()
+    total := storage.Get().Headers().Len()
+    db := storage.Get().OutputDB()
     for {
         tag, err := db.Tag()
         if err != nil {

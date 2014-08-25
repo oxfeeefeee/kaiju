@@ -20,7 +20,7 @@ func (db *KDB) enumerate(vis kvVisitor) (records uint32, garbage uint32, err err
             reachedEnd = true
         }
         buf := make([]byte, size * SlotSize, size * SlotSize)
-        _, err = readAt(db.storage, db.slotsBeginPos() + i * SlotSize, buf)
+        _, err = readAt(db.file, db.slotsBeginPos() + i * SlotSize, buf)
         if err != nil {
             return
         }
@@ -54,8 +54,8 @@ func (db *KDB) enumerate(vis kvVisitor) (records uint32, garbage uint32, err err
     return
 }
 
-func (db *KDB) Rebuild(capacity uint32, s Storage, was Storage) (*KDB, error) {
-    newdb, err := New(capacity, s, was)
+func (db *KDB) Rebuild(capacity uint32, file File, wafile File) (*KDB, error) {
+    newdb, err := New(capacity, file, wafile)
     if err != nil {
         return nil, err 
     }

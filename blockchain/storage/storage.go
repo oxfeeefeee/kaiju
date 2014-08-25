@@ -1,5 +1,5 @@
-// A facade of "blockchain/cold" to hide all the implementation
-package cold
+// A facade of "blockchain/storage" to hide all the implementation
+package storage
 
 import (
     "os"
@@ -10,7 +10,7 @@ import (
     "github.com/oxfeeefeee/kaiju/klib/kdb"
 )
 
-var cold Cold
+var storage Storage
 
 type HeaderArray interface {
     Len() int
@@ -25,7 +25,7 @@ type UtxoDB interface {
     Tag() (uint32, error)
 }
 
-type Cold struct {
+type Storage struct {
     hfile   *os.File
     dbFile  *os.File
     waFile  *os.File
@@ -33,11 +33,11 @@ type Cold struct {
     db      *outputDB
 }
 
-func Get() *Cold {
-    return &cold
+func Get() *Storage {
+    return &storage
 }
 
-func (c *Cold) Init() error {
+func (c *Storage) Init() error {
     path, err := initFilePath()
     if err != nil {
         return err
@@ -77,7 +77,7 @@ func (c *Cold) Init() error {
     return nil
 }
 
-func (c *Cold) Destroy() error {
+func (c *Storage) Destroy() error {
     if err := c.hfile.Close(); err != nil {
         return err
     }
@@ -89,11 +89,11 @@ func (c *Cold) Destroy() error {
     return nil
 }
 
-func (c *Cold) Headers() HeaderArray {
+func (c *Storage) Headers() HeaderArray {
     return c.h
 }
 
-func (c *Cold) OutputDB() UtxoDB {
+func (c *Storage) OutputDB() UtxoDB {
     return c.db
 }
 

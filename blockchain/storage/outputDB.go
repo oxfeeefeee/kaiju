@@ -1,4 +1,4 @@
-package cold
+package storage
 
 import (
     "fmt"
@@ -28,7 +28,7 @@ func (u *outputDB) Get(h *klib.Hash256, i uint32) (*catma.TxOut, error) {
     } else if val == nil {
         return nil, fmt.Errorf("outputDB.Get Cannot find tx input %s %d", h, i)
     } else {
-        return decodeTxo(val)
+        return DecodeTxo(val)
     }
 }
 
@@ -39,7 +39,7 @@ func (u *outputDB) Use(h *klib.Hash256, i uint32, txo *catma.TxOut) error {
         return err
     }
     if txo != nil { // Verify txo if provided
-        val, err := encodeTxo(txo)
+        val, err := EncodeTxo(txo)
         if err != nil {
             return err
         }
@@ -59,7 +59,7 @@ func (u *outputDB) Use(h *klib.Hash256, i uint32, txo *catma.TxOut) error {
 
 func (u *outputDB) Add(h *klib.Hash256, i uint32, txo *catma.TxOut) error {
     key := getKdbKey(h, i)
-    if val, err := encodeTxo(txo); err != nil {
+    if val, err := EncodeTxo(txo); err != nil {
         return err
     } else {
         return u.db.Add(key, val)
@@ -80,30 +80,30 @@ func (u *outputDB) Tag() (uint32, error) {
     return u.db.Tag()
 }
 
-func encodeTxo(txo *catma.TxOut) ([]byte, error) {
+func EncodeTxo(txo *catma.TxOut) ([]byte, error) {
     s := script.Script(txo.PKScript)
     if s.IsTypePubKeyHash() {
         ret := make([]byte, 20+1+8)
         ret[0] = byte(script.PKS_PubKeyHash)
         binary.LittleEndian.PutUint64(ret[1:], uint64(txo.Value))
-        copy(ret[9:], txo.PKScript[3:23])
+        copy(ret[9:], s[3:23])
         return ret, nil
     } else if s.IsTypeScriptHash() {
         ret := make([]byte, 20+1+8)
         ret[0] = byte(script.PKS_ScriptHash)
         binary.LittleEndian.PutUint64(ret[1:], uint64(txo.Value))
-        copy(ret[9:], txo.PKScript[2:22])
+        copy(ret[9:], s[2:22])
         return ret, nil
     } else {
-        ret := make([]byte, len(txo.PKScript)+1+8)
+        ret := make([]byte, len(s)+1+8)
         ret[0] = 0
-        binary.LittleEndian.PutUint64(ret[len(txo.PKScript)+1:], uint64(txo.Value))
-        copy(ret[9:], txo.PKScript)
+        binary.LittleEndian.PutUint64(ret[len(s)+1:], uint64(txo.Value))
+        copy(ret[9:], s)
         return ret, nil
     }
 }
 
-func decodeTxo(val []byte) (*catma.TxOut, error) {
+func DecodeTxo(val []byte) (*catma.TxOut, error) {
     fb := val[0]
     if fb == byte(script.PKS_PubKeyHash) {
         v := binary.LittleEndian.Uint64(val[1:])
@@ -113,7 +113,7 @@ func decodeTxo(val []byte) (*catma.TxOut, error) {
         s[2] = byte(script.OP_PUSHDATA14)
         s[23] = byte(script.OP_EQUALVERIFY)
         s[24] = byte(script.OP_CHECKSIG)
-        copy(s[3:23], val[9:21])
+        copy(s[3:23], val[9:])
         return &catma.TxOut{int64(v), s}, nil
     } else if fb == byte(script.PKS_ScriptHash) {
         v := binary.LittleEndian.Uint64(val[1:])

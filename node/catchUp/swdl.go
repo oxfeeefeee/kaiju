@@ -8,7 +8,7 @@ import (
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/catma"
     "github.com/oxfeeefeee/kaiju/blockchain"
-    "github.com/oxfeeefeee/kaiju/blockchain/cold"
+    "github.com/oxfeeefeee/kaiju/blockchain/storage"
     "github.com/oxfeeefeee/kaiju/knet"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
 )
@@ -68,7 +68,7 @@ func (sw *swdl) start() {
     sw.chin <- nil // Trigger downloading
     sw.wg.Wait()
 
-    db := cold.Get().OutputDB()
+    db := storage.Get().OutputDB()
     if err := db.Commit(uint32(sw.end-1),true); err != nil {
         log.Panicf("db commit error: %s", err)
     }
@@ -109,7 +109,7 @@ func (sw *swdl) doDownload() {
 func (sw *swdl) doSaveBlock() {
     defer sw.wg.Done()
     for bm := range sw.chblock {
-        saveBlock(bm.Message, bm.I, false)
+        saveBlock(bm.Message, bm.I, true)
     }
     log.Infoln("doSaveBlock exit")
 }
@@ -229,7 +229,7 @@ func download(req map[int]*blockchain.InvElement) map[int]interface{} {
 }
 
 func saveBlock(m btcmsg.Message, i int, verify bool) {
-    db := cold.Get().OutputDB()
+    db := storage.Get().OutputDB()
     bm, _ := m.(*btcmsg.Message_block)
     for _, tx := range bm.Txs {
         ctx := (*catma.Tx)(tx)

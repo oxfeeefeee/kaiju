@@ -2,7 +2,7 @@ package blockchain
 
 import (
     "github.com/oxfeeefeee/kaiju/klib"
-    "github.com/oxfeeefeee/kaiju/blockchain/cold"
+    "github.com/oxfeeefeee/kaiju/blockchain/storage"
 )
 
 const (
@@ -18,16 +18,16 @@ type InvElement struct {
 
 // Initialize blockchain subsystem
 func Init() error {
-    return cold.Get().Init()
+    return storage.Get().Init()
 }
 
 // Destroy blockchain subsystem
 func Destroy() error {
-    return cold.Get().Destroy()
+    return storage.Get().Destroy()
 }
 
 func GetInvElem(h int) *InvElement {
-    headers := cold.Get().Headers()
+    headers := storage.Get().Headers()
     header := headers.Get(h)
     return &InvElement{InvTypeBlock, *(header.Hash())}
 }

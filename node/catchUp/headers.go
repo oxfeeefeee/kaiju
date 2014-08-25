@@ -6,18 +6,18 @@ import (
     "github.com/oxfeeefeee/kaiju/klib"
     "github.com/oxfeeefeee/kaiju/knet"
     "github.com/oxfeeefeee/kaiju/knet/btcmsg"
-    "github.com/oxfeeefeee/kaiju/blockchain/cold"
+    "github.com/oxfeeefeee/kaiju/blockchain/storage"
 )
 
 // Returns if we should stop catching up
 func headerUpToDate() bool {
-    headers := cold.Get().Headers()
+    headers := storage.Get().Headers()
     h := headers.Get(headers.Len() - 1)
     return h.Time().Add(time.Hour * 2).After(time.Now())
 }
 
 func moreHeaders() {
-    headers := cold.Get().Headers()
+    headers := storage.Get().Headers()
     l := headers.GetLocator()
     msg := btcmsg.NewGetHeadersMsg()
     mg := msg.(*btcmsg.Message_getheaders)

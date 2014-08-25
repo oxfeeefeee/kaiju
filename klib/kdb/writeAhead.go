@@ -47,54 +47,54 @@ func (db *KDB) commit(tag uint32) error {
 }
 
 func (db *KDB) saveWAData(tag uint32) error {
-    if _, err := db.was.Seek(HeaderSize, 0); err != nil {
+    if _, err := db.wafile.Seek(HeaderSize, 0); err != nil {
         return err
     }
-    if err := db.wa.save(db.was); err != nil {
+    if err := db.wa.save(db.wafile); err != nil {
         return err
     }
-    if err := db.was.Sync(); err != nil {
+    if err := db.wafile.Sync(); err != nil {
         return err
     }
     // Now write the header of kdb
-    if _, err := db.was.Seek(0, 0); err != nil {
+    if _, err := db.wafile.Seek(0, 0); err != nil {
         return err
     }
     cursor := db.cursor + int64(len(db.wa.ValData))
-    if err := writeHeader(db.was, db.Stats, tag, cursor); err != nil {
+    if err := writeHeader(db.wafile, db.Stats, tag, cursor); err != nil {
         return err
     }
-    return db.was.Sync()
+    return db.wafile.Sync()
 }
 
 func (db *KDB) loadWAData() error {
-    if _, err := db.was.Seek(HeaderSize, 0); err != nil {
+    if _, err := db.wafile.Seek(HeaderSize, 0); err != nil {
         return err
     }
-    return db.wa.load(db.was)
+    return db.wa.load(db.wafile)
 }
 
 func (db *KDB) commitWAData(tag uint32) error {
     for n, k := range db.wa.Keys {
-        if _, err := writeAt(db.storage, db.slotsBeginPos() + n * SlotSize, k); err != nil {
+        if _, err := writeAt(db.file, db.slotsBeginPos() + n * SlotSize, k); err != nil {
             return err
         }
     }
-    n, err := writeAt(db.storage, db.cursor, db.wa.ValData)
+    n, err := writeAt(db.file, db.cursor, db.wa.ValData)
     if err != nil {
         return err
     }
-    if err := db.storage.Sync(); err != nil {
+    if err := db.file.Sync(); err != nil {
         return err
     }
     db.cursor += n
     db.wa.clear()
     // Update header to the end of committing
-    if _, err := db.storage.Seek(0, 0); err != nil {
+    if _, err := db.file.Seek(0, 0); err != nil {
         return err
     }
-    if err := writeHeader(db.storage, db.Stats, tag, db.cursor); err != nil {
+    if err := writeHeader(db.file, db.Stats, tag, db.cursor); err != nil {
         return err
     }
-    return db.storage.Sync()
+    return db.file.Sync()
 }

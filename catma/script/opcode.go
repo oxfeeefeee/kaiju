@@ -1,4 +1,4 @@
-// Adapt from Satoshi client
+// Adapted from Satoshi client
 package script
 
 import (

@@ -1,4 +1,4 @@
-package cold
+package storage
 
 import (
     "testing"

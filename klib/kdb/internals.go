@@ -34,7 +34,7 @@ func (db *KDB) slotScan(key []byte, hi handleItem, hv handleValue) (int64, error
         
         buf := make([]byte, size * SlotSize, size * SlotSize)
         //db.stats.incSlotReadCount()
-        _, err := readAt(db.storage, db.slotsBeginPos() + i * SlotSize, buf)
+        _, err := readAt(db.file, db.slotsBeginPos() + i * SlotSize, buf)
         if err != nil {
             return 0, err
         }
@@ -111,7 +111,7 @@ func (db *KDB) defaultSlot(key []byte) int64 {
 func (db *KDB) readValue(ptr uint32, unitLen bool) ([]byte, bool, error) {
     pos := db.dataBeginPos() + int64(ptr) * ValLenUnit
     var r io.ReadSeeker
-    r = db.storage
+    r = db.file
     if pos >= db.cursor { // Need to read from Write-ahead-data
         pos -= db.cursor
         r = bytes.NewReader(db.wa.ValData)
@@ -195,7 +195,7 @@ func (db *KDB) writeBlank(batchSize int64, totalSize int64) error {
             bs = left
         }
         zeros := make([]byte, bs)
-        _, err := writeAt(db.storage, db.slotsBeginPos() + cur, zeros)
+        _, err := writeAt(db.file, db.slotsBeginPos() + cur, zeros)
         if err != nil {
             return err
         }
@@ -227,10 +227,10 @@ func (db *KDB) slotCount() int64 {
 }
 
 func (db *KDB) tag() (uint32, error) {
-    if _, err := db.storage.Seek(0, 0); err != nil {
+    if _, err := db.file.Seek(0, 0); err != nil {
         return 0, err
     }
-    _, tag, _, err := readHeader(db.storage)
+    _, tag, _, err := readHeader(db.file)
     if err != nil {
         return 0, err
     }
@@ -253,7 +253,7 @@ func writeAt(w io.WriteSeeker, c int64, p []byte) (int64, error) {
     return int64(n), err
 }
 
-func writeHeader(s Storage, sta *Stats, tag uint32, cursor int64) error {
+func writeHeader(f File, sta *Stats, tag uint32, cursor int64) error {
     p := make([]byte, 0, HeaderSize)
     buf := bytes.NewBuffer(p)
     consts := []byte{'K', 'D', 'B', Version, 
@@ -268,15 +268,15 @@ func writeHeader(s Storage, sta *Stats, tag uint32, cursor int64) error {
     }
     binary.Write(buf, binary.LittleEndian, tag)
     binary.Write(buf, binary.LittleEndian, cursor)
-    _, err := s.Write(buf.Bytes())
+    _, err := f.Write(buf.Bytes())
     return err
 }
 
 // Returns *Stats, tag, cursor
-func readHeader(s Storage) (*Stats, uint32, int64, error) {
+func readHeader(f File) (*Stats, uint32, int64, error) {
     errInvalid := errors.New("Invalid KDB header")
     p := make([]byte, HeaderSize)
-    if _, err := s.Read(p); err != nil {
+    if _, err := f.Read(p); err != nil {
         return nil, 0, 0, err
     }
     if p[0] != 'K' || p[1] != 'D' || p[2] != 'B' || Version != p[3] {
