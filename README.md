@@ -17,7 +17,7 @@ Kaiju is designed to handle thouthands of connnections. And it does only one thi
 <a href="https://github.com/oxfeeefeee/kaiju/blob/master/KDB.md" title="KDB">KDB</a>
 ----
 
-A compact TXDatabase will be used in Kaiju, so that you don't need to store the full blockchain, but can sitll verify transactions.
+A compact TXDatabase will be used in Kaiju, so that you don't need to store the full blockchain, but can still verify transactions.
 
 Educational Purpose
 ----
@@ -28,4 +28,4 @@ Kaiju is planning to be small, clean and simple, hopefully under 5K lines of cod
 
 Current Status
 ---
-WIP, hopefully nobody sees this :) 
+WIP. With about 10K lines of code written, I'd say 90% percent of all the features are done. But the development was suspended as I couldn't allocate time for it, I'll try not keep it this way :) 
